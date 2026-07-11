@@ -89,6 +89,14 @@ function init() {
               });
           });
         break;
+      default:
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            payload: "unknown type",
+          }),
+        );
+        break;
     }
   };
 }
