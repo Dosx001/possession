@@ -16,6 +16,19 @@ function init() {
           code: `document.querySelector("${data.query}")?.click()`,
         });
         break;
+      case "current":
+        browser.tabs
+          .query({ active: true, currentWindow: true })
+          .then(([tab]) => {
+            ws.send(
+              JSON.stringify(
+                tab
+                  ? { type: "url", payload: tab.url }
+                  : { type: "error", payload: "no tab" },
+              ),
+            );
+          });
+        break;
       case "execute":
         browser.tabs
           .executeScript({
@@ -38,6 +51,11 @@ function init() {
               }),
             );
           });
+        break;
+      case "focused":
+        browser.tabs.executeScript({
+          code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
+        });
         break;
       case "text":
         browser.tabs.executeScript({

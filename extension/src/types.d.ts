@@ -1,6 +1,6 @@
 type Payload =
   | {
-      type: "ping";
+      type: "ping" | "current"  | "focused";
     }
   | {
       type: "click" | "text";
