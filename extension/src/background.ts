@@ -57,9 +57,18 @@ function init() {
           code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
         });
         break;
+      case "property":
+        browser.tabs.executeScript({
+          code:
+            `{const e=document.querySelector("${data.query}");` +
+            `browser.runtime.sendMessage({type:"text",payload:e?e.${data.prop}:""})}`,
+        });
+        break;
       case "text":
         browser.tabs.executeScript({
-          code: `{const e=document.querySelector("${data.query}");browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
+          code:
+            `{const e=document.querySelector("${data.query}");` +
+            `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
         });
         break;
       case "url":

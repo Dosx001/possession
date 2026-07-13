@@ -13,6 +13,11 @@ type Payload =
       frame?: boolean;
     }
   | {
+      type: "property";
+      query: string;
+      prop: string;
+    }
+  | {
       type: "url";
       id: number;
       url: string;
