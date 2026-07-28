@@ -53,7 +53,8 @@ pub fn init() !void {
             std.log.err("Websocket accept failed: {}", .{e});
             continue;
         };
-        _ = std.Thread.spawn(.{}, event_loop, .{conn}) catch continue;
+        const t = std.Thread.spawn(.{}, event_loop, .{conn}) catch continue;
+        t.detach();
     }
 }
 
