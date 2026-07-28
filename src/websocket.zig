@@ -108,13 +108,20 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
     };
     if (std.mem.startsWith(u8, buf, "client")) {
         if (client == 0) {
-            _ = posix.write(fd, &[1]u8{0x1}) catch |e| {
-                std.log.err("Client handshake failed: {}", .{e});
-                return e;
-            };
-            c_mtx.lock();
-            client = fd;
-            c_mtx.unlock();
+            if (browser == 0) {
+                _ = posix.write(fd, &[1]u8{0x2}) catch |e| {
+                    std.log.err("Client rejection failed: {}", .{e});
+                    return e;
+                };
+            } else {
+                _ = posix.write(fd, &[1]u8{0x1}) catch |e| {
+                    std.log.err("Client handshake failed: {}", .{e});
+                    return e;
+                };
+                c_mtx.lock();
+                client = fd;
+                c_mtx.unlock();
+            }
         } else {
             _ = posix.write(fd, &[1]u8{0x0}) catch |e| {
                 std.log.err("Client rejection failed: {}", .{e});
