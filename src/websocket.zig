@@ -8,10 +8,12 @@ const Msg = struct {
     data: []const u8,
 };
 
+var browser: posix.socket_t = -1;
 var b_mtx = std.Thread.Mutex{};
+var b_cv = std.Thread.Condition{};
+var client: posix.socket_t = -1;
 var c_mtx = std.Thread.Mutex{};
-var browser: posix.socket_t = 0;
-var client: posix.socket_t = 0;
+var c_cv = std.Thread.Condition{};
 
 pub fn init() !void {
     sig.init(quit, exit);
@@ -48,56 +50,77 @@ pub fn init() !void {
         return;
     };
     std.log.info("Websocket listening: {any}", .{addr});
+    const browser_t = std.Thread.spawn(.{}, el_browser, .{}) catch |e| {
+        std.log.err("Browser thread failed: {}", .{e});
+        return;
+    };
+    const client_t = std.Thread.spawn(.{}, el_client, .{}) catch |e| {
+        std.log.err("Client thread failed: {}", .{e});
+        return;
+    };
     while (true) {
         const conn = posix.accept(fd, null, null, 0) catch |e| {
             std.log.err("Websocket accept failed: {}", .{e});
             continue;
         };
-        const t = std.Thread.spawn(.{}, event_loop, .{conn}) catch continue;
-        t.detach();
+        var buf: [1024]u8 = undefined;
+        if (handshake(conn, &buf) catch {
+            posix.close(conn);
+            continue;
+        }) {
+            b_mtx.lock();
+            browser = conn;
+            b_cv.signal();
+            b_mtx.unlock();
+        } else {
+            c_mtx.lock();
+            client = conn;
+            c_cv.signal();
+            c_mtx.unlock();
+        }
     }
+    browser_t.join();
+    client_t.join();
 }
 
-fn event_loop(fd: posix.socket_t) void {
-    defer posix.close(fd);
+fn el_browser() !void {
     var buf: [1024]u8 = undefined;
-    if (handshake(fd, &buf) catch return) {
-        el_browser(&buf) catch return;
-    } else el_client(&buf) catch return;
-}
-
-fn el_browser(buf: []u8) !void {
-    defer {
+    while (true) {
         b_mtx.lock();
-        browser = 0;
+        while (browser == -1)
+            b_cv.wait(&b_mtx);
+        const fd = browser;
+        b_mtx.unlock();
+        while (true) {
+            const n = posix.read(fd, &buf) catch break;
+            if (n == 0) break;
+            decode(buf[0..n]) catch break;
+        }
+        posix.close(fd);
+        b_mtx.lock();
+        browser = -1;
         b_mtx.unlock();
     }
-    var len: usize = 0;
-    while (true) {
-        len = posix.read(browser, buf) catch |e| {
-            std.log.err("Browser message read failed: {}", .{e});
-            break;
-        };
-        if (len == 0) break;
-        decode(buf[0..len]) catch break;
-    }
 }
 
-fn el_client(buf: []u8) !void {
-    defer {
-        c_mtx.lock();
-        client = 0;
-        c_mtx.unlock();
-    }
-    var len: usize = 0;
+fn el_client() !void {
+    var buf: [1024]u8 = undefined;
     var msg: [1024]u8 = undefined;
     while (true) {
-        len = posix.read(client, &msg) catch |e| {
-            std.log.err("Client message read failed: {}", .{e});
-            break;
-        };
-        if (len == 0) break;
-        message(buf, msg[0..len]) catch break;
+        c_mtx.lock();
+        while (client == -1)
+            c_cv.wait(&c_mtx);
+        const fd = client;
+        c_mtx.unlock();
+        while (true) {
+            const n = posix.read(fd, &msg) catch break;
+            if (n == 0) break;
+            message(&buf, msg[0..n]) catch break;
+        }
+        posix.close(fd);
+        c_mtx.lock();
+        client = -1;
+        c_mtx.unlock();
     }
 }
 
@@ -106,9 +129,15 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
         std.log.err("Websocket header read failed: {}", .{e});
         return e;
     };
+    b_mtx.lock();
+    const b_fd = browser;
+    b_mtx.unlock();
     if (std.mem.startsWith(u8, buf, "client")) {
-        if (client == 0) {
-            if (browser == 0) {
+        c_mtx.lock();
+        const c_fd = client;
+        c_mtx.unlock();
+        if (c_fd == -1) {
+            if (b_fd == -1) {
                 _ = posix.write(fd, &[1]u8{0x2}) catch |e| {
                     std.log.err("Client rejection failed: {}", .{e});
                     return e;
@@ -118,9 +147,6 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
                     std.log.err("Client handshake failed: {}", .{e});
                     return e;
                 };
-                c_mtx.lock();
-                client = fd;
-                c_mtx.unlock();
             }
         } else {
             _ = posix.write(fd, &[1]u8{0x0}) catch |e| {
@@ -130,7 +156,7 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
         }
         return false;
     }
-    if (browser != 0) {
+    if (b_fd != -1) {
         _ = posix.write(fd, &[1]u8{0x0}) catch |e| {
             std.log.err("Client rejection failed: {}", .{e});
             return e;
@@ -169,13 +195,13 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
         std.log.err("Handshake write failed: {}", .{e});
         return e;
     };
-    b_mtx.lock();
-    browser = fd;
-    b_mtx.unlock();
     return true;
 }
 
 fn decode(buf: []u8) !void {
+    c_mtx.lock();
+    const fd = client;
+    c_mtx.unlock();
     var len: usize = (buf[1] & 0x7F);
     var index: usize =
         switch (len) {
@@ -199,13 +225,16 @@ fn decode(buf: []u8) !void {
         b.* = b.* ^ key[i % 4];
     }
     if (payload.len == 2) return error.Closed;
-    _ = posix.write(client, payload) catch |e| {
+    _ = posix.write(fd, payload) catch |e| {
         std.log.err("Server write failed: {}", .{e});
         return e;
     };
 }
 
 fn message(buf: []u8, msg: []const u8) !void {
+    b_mtx.lock();
+    const fd = browser;
+    b_mtx.unlock();
     if (msg.len < 126) {
         const slice = std.fmt.bufPrint(
             buf,
@@ -217,7 +246,7 @@ fn message(buf: []u8, msg: []const u8) !void {
         };
         buf[0] = 0x81;
         buf[1] = @intCast(msg.len);
-        _ = posix.write(browser, slice) catch |e| {
+        _ = posix.write(fd, slice) catch |e| {
             std.log.err("Server write failed: {}", .{e});
             return e;
         };
@@ -235,7 +264,7 @@ fn message(buf: []u8, msg: []const u8) !void {
     buf[1] = 0x7E;
     buf[2] = @intCast((msg.len >> 8) & 0xFF);
     buf[3] = @intCast(msg.len & 0xFF);
-    _ = posix.write(browser, slice) catch |e| {
+    _ = posix.write(fd, slice) catch |e| {
         std.log.err("Server write failed: {}", .{e});
         return e;
     };
