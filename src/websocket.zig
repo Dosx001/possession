@@ -174,18 +174,28 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
     } else return error.NotFound;
     var sha: [std.crypto.hash.Sha1.digest_length]u8 = undefined;
     std.crypto.hash.Sha1.hash(
-        std.fmt.bufPrint(buf, "{s}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", .{key}) catch |e| {
+        std.fmt.bufPrint(
+            buf,
+            "{s}258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+            .{key},
+        ) catch |e| {
             std.log.err("Magic string failed: {}", .{e});
             return e;
         },
         &sha,
-        .{},
+        .{}
     );
-    const encoder = std.base64.Base64Encoder.init(std.base64.standard_alphabet_chars, '=');
+    const encoder = std.base64.Base64Encoder.init(
+        std.base64.standard_alphabet_chars,
+        '=',
+    );
     var b64: [32]u8 = undefined;
     const slice = std.fmt.bufPrint(
         buf,
-        "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {s}\r\n\r\n",
+        "HTTP/1.1 101 Switching Protocols\r\n" ++
+            "Upgrade: websocket\r\n" ++
+            "Connection: Upgrade\r\n" ++
+            "Sec-WebSocket-Accept: {s}\r\n\r\n",
         .{encoder.encode(&b64, &sha)},
     ) catch |e| {
         std.log.err("Handshake format failed: {}", .{e});
