@@ -226,8 +226,7 @@ fn decode(buf: []u8) !void {
     }
     if (payload.len == 2) return error.Closed;
     _ = posix.write(fd, payload) catch |e| {
-        std.log.err("Server write failed: {}", .{e});
-        return e;
+        std.log.err("Client payload failed: {}", .{e});
     };
 }
 
@@ -247,7 +246,7 @@ fn message(buf: []u8, msg: []const u8) !void {
         buf[0] = 0x81;
         buf[1] = @intCast(msg.len);
         _ = posix.write(fd, slice) catch |e| {
-            std.log.err("Server write failed: {}", .{e});
+            std.log.err("Message write failed: {}", .{e});
             return e;
         };
         return;
@@ -257,7 +256,7 @@ fn message(buf: []u8, msg: []const u8) !void {
         "0000{s}",
         .{msg},
     ) catch |e| {
-        std.log.err("Message format failed: {}", .{e});
+        std.log.err("Message(16-bit) format failed: {}", .{e});
         return e;
     };
     buf[0] = 0x81;
@@ -265,7 +264,7 @@ fn message(buf: []u8, msg: []const u8) !void {
     buf[2] = @intCast((msg.len >> 8) & 0xFF);
     buf[3] = @intCast(msg.len & 0xFF);
     _ = posix.write(fd, slice) catch |e| {
-        std.log.err("Server write failed: {}", .{e});
+        std.log.err("Message(16-bit) write failed: {}", .{e});
         return e;
     };
 }
