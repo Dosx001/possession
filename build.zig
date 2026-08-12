@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     const exe = b.addExecutable(.{
-        .name = "mcjd",
+        .name = "possession",
         .root_module = exe_mod,
     });
     b.installArtifact(exe);
@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     const client = b.addExecutable(.{
-        .name = "mcjc",
+        .name = "possession-client",
         .root_module = client_mod,
     });
     b.installArtifact(client);

@@ -14,11 +14,23 @@
   "browser_action": {
     "browser_style": true,
     "default_popup": "src/popup.html",
-    "default_title": "possession"
+    "default_title": "possession",
+    "default_icon": {
+      "16": "16.png",
+      "48": "48.png",
+      "64": "64.png",
+      "128": "128.png"
+    }
   },
   "background": {
     "scripts": [
       "src/background.ts"
     ]
+  },
+  "icons": {
+    "16": "16.png",
+    "48": "48.png",
+    "64": "64.png",
+    "128": "128.png"
   }
 }
