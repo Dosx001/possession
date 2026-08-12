@@ -8,13 +8,13 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "@scalpel"
+      "id": "@possession"
     }
   },
   "browser_action": {
     "browser_style": true,
     "default_popup": "src/popup.html",
-    "default_title": "Scalpel"
+    "default_title": "possession"
   },
   "background": {
     "scripts": [
