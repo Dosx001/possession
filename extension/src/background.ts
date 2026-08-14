@@ -16,21 +16,19 @@ function init() {
           .executeScript({
             code: `document.querySelector("${data.query}")?.click()`,
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "current":
         browser.tabs
           .query({ active: true, currentWindow: true })
           .then(([tab]) => {
-            ws.send(
-              JSON.stringify(
-                tab
-                  ? { type: "url", payload: tab.url }
-                  : { type: "error", payload: "tab not found" },
-              ),
+            sendMsg(
+              tab
+                ? { type: "url", payload: tab.url }
+                : { type: "error", payload: "tab not found" },
             );
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "execute":
         browser.tabs
@@ -39,21 +37,19 @@ function init() {
             allFrames: data.frame ?? false,
           })
           .then(() => {
-            ws.send(
-              JSON.stringify({
-                type: "execute",
-                payload: "done",
-              }),
-            );
+            sendMsg({
+              type: "execute",
+              payload: "done",
+            });
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "focused":
         browser.tabs
           .executeScript({
             code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "property":
         browser.tabs
@@ -62,7 +58,7 @@ function init() {
               `{const e=document.querySelector("${data.query}");` +
               `browser.runtime.sendMessage({type:"text",payload:e?e.${data.prop}:""})}`,
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "reload":
         browser.tabs
@@ -72,20 +68,15 @@ function init() {
               browser.tabs
                 .reload(tab.id!)
                 .then(() => {
-                  ws.send(
-                    JSON.stringify({
-                      type: "reload",
-                      payload: tab.id,
-                    }),
-                  );
+                  sendMsg({
+                    type: "reload",
+                    payload: tab.id,
+                  });
                 })
-                .catch(errMsg);
-            } else
-              ws.send(
-                JSON.stringify({ type: "error", payload: "tab not found" }),
-              );
+                .catch(sendErr);
+            } else sendMsg({ type: "error", payload: "tab not found" });
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "text":
         browser.tabs
@@ -94,20 +85,18 @@ function init() {
               `{const e=document.querySelector("${data.query}");` +
               `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "url":
         browser.tabs
           .update(data.id, { url: data.url })
           .then(() => {
-            ws.send(
-              JSON.stringify({
-                type: "url",
-                payload: "updated",
-              }),
-            );
+            sendMsg({
+              type: "url",
+              payload: "updated",
+            });
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       case "window":
         browser.windows
@@ -125,15 +114,13 @@ function init() {
                 properties: ["status"],
               });
           })
-          .catch(errMsg);
+          .catch(sendErr);
         break;
       default:
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            payload: "unknown type",
-          }),
-        );
+        sendMsg({
+          type: "error",
+          payload: "unknown type",
+        });
         break;
     }
   };
@@ -141,13 +128,15 @@ function init() {
 
 init();
 
-function errMsg(err: Error) {
-  ws.send(
-    JSON.stringify({
-      type: "error",
-      payload: err.message,
-    }),
-  );
+function sendMsg(payload: object) {
+  ws.send(JSON.stringify(payload));
+}
+
+function sendErr(err: Error) {
+  sendMsg({
+    type: "error",
+    payload: err.message,
+  });
 }
 
 function handleUpdate(
@@ -156,12 +145,10 @@ function handleUpdate(
   tab: browser.tabs.Tab,
 ) {
   if (info.status === "complete") {
-    ws.send(
-      JSON.stringify({
-        id: tab.windowId,
-        tabId: tabId,
-      }),
-    );
+    sendMsg({
+      id: tab.windowId,
+      tabId: tabId,
+    });
     browser.tabs.onUpdated.removeListener(handleUpdate);
   }
 }
@@ -170,6 +157,6 @@ browser.runtime.onSuspend.addListener(() => {
   ws.close();
 });
 
-browser.runtime.onMessage.addListener((message) => {
-  ws.send(JSON.stringify(message));
+browser.runtime.onMessage.addListener((msg: object) => {
+  sendMsg(msg);
 });
