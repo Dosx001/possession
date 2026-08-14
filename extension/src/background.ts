@@ -114,12 +114,12 @@ function init() {
             focused: true,
             incognito: data.private ?? false,
           })
-          .then((window) => {
-            const tab = (window.tabs ?? [])[0];
+          .then((win) => {
+            const tab = win.tabs![0];
             if (tab)
               browser.tabs.onUpdated.addListener(handleUpdate, {
                 tabId: tab.id,
-                windowId: window.id,
+                windowId: win.id,
                 properties: ["status"],
               });
           });
