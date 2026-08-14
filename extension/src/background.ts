@@ -64,6 +64,32 @@ function init() {
             `browser.runtime.sendMessage({type:"text",payload:e?e.${data.prop}:""})}`,
         });
         break;
+      case "reload":
+        browser.tabs
+          .query({ title: data.regex })
+          .then(([tab]) => {
+            if (tab) {
+              browser.tabs.reload(tab.id!);
+              ws.send(
+                JSON.stringify({
+                  type: "reload",
+                  payload: tab.id,
+                }),
+              );
+            } else
+              ws.send(
+                JSON.stringify({ type: "error", payload: "tab not found" }),
+              );
+          })
+          .catch((err: Error) => {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                payload: err.message,
+              }),
+            );
+          });
+        break;
       case "text":
         browser.tabs.executeScript({
           code:

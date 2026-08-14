@@ -23,6 +23,10 @@ type Payload =
       url: string;
     }
   | {
+      type: "reload";
+      regex: string;
+    }
+  | {
       type: "window";
       url: string;
       private?: boolean;
