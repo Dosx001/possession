@@ -3,11 +3,6 @@ const std = @import("std");
 
 const posix = std.posix;
 
-const Msg = struct {
-    status: bool,
-    data: []const u8,
-};
-
 var browser: posix.socket_t = -1;
 var b_mtx = std.Thread.Mutex{};
 var b_cv = std.Thread.Condition{};
@@ -183,7 +178,7 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
             return e;
         },
         &sha,
-        .{}
+        .{},
     );
     const encoder = std.base64.Base64Encoder.init(
         std.base64.standard_alphabet_chars,
@@ -259,6 +254,7 @@ fn message(buf: []u8, msg: []const u8) !void {
             std.log.err("Message write failed: {}", .{e});
             return e;
         };
+        std.log.info("Record {s}", .{msg});
         return;
     }
     const slice = std.fmt.bufPrint(
@@ -277,6 +273,7 @@ fn message(buf: []u8, msg: []const u8) !void {
         std.log.err("Message(16-bit) write failed: {}", .{e});
         return e;
     };
+    std.log.info("Record {s}", .{msg});
 }
 
 fn quit(_: c_int) callconv(.c) void {

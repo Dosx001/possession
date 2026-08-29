@@ -14,6 +14,7 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
     b.installArtifact(exe);
+    exe.linkLibC();
 
     const client_mod = b.createModule(.{
         .root_source_file = b.path("src/client.zig"),
