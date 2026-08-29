@@ -1,8 +1,12 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": ["esnext", "dom", "dom.iterable"],
-    "module": "commonjs",
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ],
+    "module": "nodenext",
     "rootDir": "./src",
     "outDir": "dist",
     "esModuleInterop": true,
@@ -10,6 +14,8 @@
     "strict": true,
     "skipLibCheck": true,
     "removeComments": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
     "baseUrl": "src"
   }
 }

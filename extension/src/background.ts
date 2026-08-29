@@ -1,3 +1,5 @@
+import { getTab } from "urls";
+
 let ws: WebSocket;
 
 function init() {
@@ -12,42 +14,47 @@ function init() {
         ws.send("pong");
         break;
       case "click":
-        browser.tabs
-          .executeScript({
-            code: `document.querySelector("${data.query}")?.click()`,
+        getTab()
+          .then((tab) => {
+            browser.tabs
+              .executeScript(tab.id!, {
+                code: `document.querySelector("${data.query}")?.click()`,
+              })
+              .catch(sendErr);
           })
           .catch(sendErr);
         break;
       case "current":
-        browser.tabs
-          .query({ active: true, currentWindow: true })
-          .then(([tab]) => {
-            sendMsg(
-              tab
-                ? { type: "url", payload: tab.url }
-                : { type: "error", payload: "tab not found" },
-            );
-          })
+        getTab()
+          .then((tab) => sendMsg({ type: "url", payload: tab.url }))
           .catch(sendErr);
         break;
       case "execute":
-        browser.tabs
-          .executeScript({
-            code: data.code,
-            allFrames: data.frame ?? false,
-          })
-          .then(() => {
-            sendMsg({
-              type: "execute",
-              payload: "done",
-            });
+        getTab()
+          .then((tab) => {
+            browser.tabs
+              .executeScript(tab.id!, {
+                code: data.code,
+                allFrames: data.frame ?? false,
+              })
+              .then(() => {
+                sendMsg({
+                  type: "execute",
+                  payload: "done",
+                });
+              })
+              .catch(sendErr);
           })
           .catch(sendErr);
         break;
       case "focused":
-        browser.tabs
-          .executeScript({
-            code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
+        getTab()
+          .then((tab) => {
+            browser.tabs
+              .executeScript(tab.id!, {
+                code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
+              })
+              .catch(sendErr);
           })
           .catch(sendErr);
         break;
@@ -61,29 +68,30 @@ function init() {
           .catch(sendErr);
         break;
       case "reload":
-        browser.tabs
-          .query({ title: data.regex })
-          .then(([tab]) => {
-            if (tab) {
-              browser.tabs
-                .reload(tab.id!)
-                .then(() => {
-                  sendMsg({
-                    type: "reload",
-                    payload: tab.id,
-                  });
-                })
-                .catch(sendErr);
-            } else sendMsg({ type: "error", payload: "tab not found" });
+        getTab({ title: data.regex })
+          .then((tab) => {
+            browser.tabs
+              .reload(tab.id!)
+              .then(() => {
+                sendMsg({
+                  type: "reload",
+                  payload: tab.id,
+                });
+              })
+              .catch(sendErr);
           })
           .catch(sendErr);
         break;
       case "text":
-        browser.tabs
-          .executeScript({
-            code:
-              `{const e=document.querySelector("${data.query}");` +
-              `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
+        getTab()
+          .then((tab) => {
+            browser.tabs
+              .executeScript(tab.id!, {
+                code:
+                  `{const e=document.querySelector("${data.query}");` +
+                  `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
+              })
+              .catch(sendErr);
           })
           .catch(sendErr);
         break;

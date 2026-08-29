@@ -1,11 +1,20 @@
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import solid from "vite-plugin-solid";
 import webExtension, { readJsonFile } from "vite-plugin-web-extension";
 
 export default defineConfig({
   build: {
     modulePreload: false,
   },
+  resolve: {
+    alias: {
+      urls: "src/urls.ts",
+    },
+  },
   plugins: [
+    solid(),
+    tailwindcss(),
     webExtension({
       browser: "firefox",
       skipManifestValidation: true,

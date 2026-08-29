@@ -1,0 +1,23 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --color-gray: darkgray;
+  --color-default: #0d1117;
+}
+
+body {
+  @apply bg-default text-gray m-4 font-sans;
+}
+
+button {
+  @apply text-gray border-gray cursor-pointer rounded-md border-2 bg-black;
+  &:active {
+    @apply opacity-50;
+  }
+}
+
+input {
+  @apply text-gray bg-black;
+} 

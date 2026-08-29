@@ -1,6 +1,12 @@
+type UrlInfo = {
+  url: string;
+  valid: boolean;
+  prefix: boolean;
+};
+
 type Payload =
   | {
-      type: "ping" | "current"  | "focused";
+      type: "ping" | "current" | "focused";
     }
   | {
       type: "click" | "text";
