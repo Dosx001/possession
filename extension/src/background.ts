@@ -9,7 +9,13 @@ function init() {
     setTimeout(init, 1000);
   };
   ws.onmessage = (ev) => {
-    const data: Payload = JSON.parse(ev.data);
+    let data: Payload;
+    try {
+      data = JSON.parse(ev.data);
+    } catch (err) {
+      sendErr(err as Error);
+      return;
+    }
     switch (data.type) {
       case "ping":
         ws.send("pong");
