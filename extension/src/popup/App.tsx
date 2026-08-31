@@ -58,6 +58,7 @@ const App = () => {
               <input
                 value={item.url}
                 class="w-full"
+                style={{ color: item.valid ? "" : "red" }}
                 onChange={(e) => {
                   setUrls(
                     produce((arr) => {

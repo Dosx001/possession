@@ -19,5 +19,8 @@ button {
 }
 
 input {
-  @apply text-gray bg-black;
-} 
+  @apply text-gray bg-black outline-none;
+  &:focus {
+    @apply bg-gray-700;
+  }
+}
