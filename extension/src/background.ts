@@ -17,11 +17,9 @@ function init() {
       case "click":
         getTab()
           .then((tab) => {
-            browser.tabs
-              .executeScript(tab.id!, {
-                code: `document.querySelector("${data.query}")?.click()`,
-              })
-              .catch(sendErr);
+            browser.tabs.executeScript(tab.id!, {
+              code: `document.querySelector("${data.query}")?.click()`,
+            });
           })
           .catch(sendErr);
         break;
@@ -43,56 +41,50 @@ function init() {
                   type: "execute",
                   payload: "done",
                 });
-              })
-              .catch(sendErr);
+              });
           })
           .catch(sendErr);
         break;
       case "focused":
         getTab()
           .then((tab) => {
-            browser.tabs
-              .executeScript(tab.id!, {
-                code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
-              })
-              .catch(sendErr);
+            browser.tabs.executeScript(tab.id!, {
+              code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
+            });
           })
           .catch(sendErr);
         break;
       case "property":
-        browser.tabs
-          .executeScript({
-            code:
-              `{const e=document.querySelector("${data.query}");` +
-              `browser.runtime.sendMessage({type:"text",payload:e?e.${data.prop}:""})}`,
+        getTab()
+          .then((tab) => {
+            browser.tabs.executeScript(tab.id!, {
+              code:
+                `{const e=document.querySelector("${data.query}");` +
+                `browser.runtime.sendMessage({type:"text",payload:e?e.${data.prop}:""})}`,
+            });
           })
           .catch(sendErr);
         break;
       case "reload":
         getTab({ title: data.regex })
           .then((tab) => {
-            browser.tabs
-              .reload(tab.id!)
-              .then(() => {
-                sendMsg({
-                  type: "reload",
-                  payload: tab.id,
-                });
-              })
-              .catch(sendErr);
+            browser.tabs.reload(tab.id!).then(() => {
+              sendMsg({
+                type: "reload",
+                payload: tab.id,
+              });
+            });
           })
           .catch(sendErr);
         break;
       case "text":
         getTab()
           .then((tab) => {
-            browser.tabs
-              .executeScript(tab.id!, {
-                code:
-                  `{const e=document.querySelector("${data.query}");` +
-                  `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
-              })
-              .catch(sendErr);
+            browser.tabs.executeScript(tab.id!, {
+              code:
+                `{const e=document.querySelector("${data.query}");` +
+                `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
+            });
           })
           .catch(sendErr);
         break;
