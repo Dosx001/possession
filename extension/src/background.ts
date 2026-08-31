@@ -1,3 +1,4 @@
+import { Payload } from "types";
 import { getTab } from "urls";
 
 let ws: WebSocket;

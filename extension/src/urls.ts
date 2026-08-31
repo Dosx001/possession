@@ -1,3 +1,5 @@
+import { UrlInfo } from "types";
+
 let urls: UrlInfo[] = [];
 
 browser.storage.sync.get("urls").then((obj) => {

@@ -1,10 +1,10 @@
-type UrlInfo = {
+export type UrlInfo = {
   url: string;
   valid: boolean;
   prefix: boolean;
 };
 
-type Payload =
+export type Payload =
   | {
       type: "ping" | "current" | "focused";
     }

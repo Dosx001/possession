@@ -1,30 +1,26 @@
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
+import js from "@eslint/js";
+import * as tsParser from "@typescript-eslint/parser";
 import solid from "eslint-plugin-solid/configs/typescript";
 import { defineConfig } from "eslint/config";
+import globals from "globals";
 
 export default defineConfig([
   {
-    files: ["**/*.{ts,tsx}"],
-    ...solid,
+    ignores: ["dist/**"],
+  },
+  js.configs.recommended,
+  {
+    files: ["src/**/*.{ts,tsx,d.ts}"],
+    ...(solid as any),
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: "tsconfig.json",
+        project: "./tsconfig.json",
       },
-    },
-  },
-  {
-    languageOptions: {
-      parser: tsParser,
-      ecmaVersion: "latest",
-      sourceType: "module",
-    },
-    plugins: {
-      "@typescript-eslint": typescriptEslint,
-    },
-    rules: {
-      "@typescript-eslint/no-non-null-assertion": "off",
+      globals: {
+        ...globals.browser,
+        browser: "readonly",
+      },
     },
   },
 ]);

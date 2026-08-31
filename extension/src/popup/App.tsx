@@ -1,5 +1,6 @@
-import { onMount, For } from "solid-js";
+import { For, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
+import { UrlInfo } from "types";
 
 const App = () => {
   let input!: HTMLInputElement;
@@ -13,13 +14,14 @@ const App = () => {
     browser.storage.sync.set({ urls });
   }
   function validate(el: HTMLInputElement): UrlInfo {
-    const txt = el.value;
+    const url = el.value;
     try {
-      const prefix = /^https?:\/\//.test(txt);
-      new URL((prefix ? "" : "http://") + txt);
-      return { url: txt, valid: true, prefix };
-    } catch {}
-    return { url: txt, valid: false, prefix: false };
+      const prefix = /^https?:\/\//.test(url);
+      new URL((prefix ? "" : "http://") + url);
+      return { url, valid: true, prefix };
+    } catch {
+      return { url, valid: false, prefix: false };
+    }
   }
   onMount(() => {
     browser.storage.sync.get("urls").then(({ urls }) => {

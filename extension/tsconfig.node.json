@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "nodenext",
+    "module": "nodenext",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "vite.config.mts",
+    "eslint.config.mts"
+  ]
+}

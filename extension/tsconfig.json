@@ -6,8 +6,8 @@
       "dom",
       "dom.iterable"
     ],
-    "module": "nodenext",
-    "rootDir": "./src",
+    "module": "preserve",
+    "rootDir": "src",
     "outDir": "dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -17,5 +17,10 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "baseUrl": "src"
-  }
+  },
+  "references": [
+    {
+      "path": "tsconfig.node.json"
+    }
+  ]
 }
