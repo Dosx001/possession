@@ -1,0 +1,27 @@
+{
+  "name": "possession",
+  "version": "1.0.0",
+  "description": "Control your browser with a TCP client",
+  "scripts": {
+    "lint": "eslint .",
+    "build": "vite build",
+    "clean": "rm -rf dist",
+    "package": "web-ext build -s dist -o",
+    "bundle": "pnpm clean && pnpm build && pnpm package"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.4",
+  "dependencies": {
+    "solid-js": "^1.9.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/firefox-webext-browser": "^120.0.4",
+    "tailwindcss": "^4.3.3",
+    "vite": "^7.1.3",
+    "vite-plugin-solid": "^2.11.14",
+    "vite-plugin-web-extension": "^4.4.5"
+  }
+}

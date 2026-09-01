@@ -6,11 +6,11 @@ import globals from "globals";
 
 export default defineConfig([
   {
-    ignores: ["dist/**"],
+    ignores: ["**/dist/**"],
   },
   js.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx,d.ts}"],
+    files: ["**/*.{ts,tsx,mts}"],
     ...(solid as any),
     languageOptions: {
       parser: tsParser,

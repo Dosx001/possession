@@ -36,18 +36,18 @@ function init() {
         break;
       case "execute":
         getTab()
-          .then((tab) => {
-            browser.tabs
-              .executeScript(tab.id!, {
-                code: data.code,
-                allFrames: data.frame ?? false,
-              })
-              .then(() => {
-                sendMsg({
-                  type: "execute",
-                  payload: "done",
-                });
-              });
+          .then((tab) =>
+            browser.runtime.sendMessage("@nightmare", {
+              id: tab.id,
+              code: data.code,
+            }),
+          )
+          .then((resp: { error?: Error }) => {
+            if (resp.error) throw resp.error;
+            sendMsg({
+              type: "execute",
+              payload: "ok",
+            });
           })
           .catch(sendErr);
         break;

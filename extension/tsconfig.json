@@ -1,26 +1,14 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": [
-      "esnext",
-      "dom",
-      "dom.iterable"
-    ],
-    "module": "preserve",
-    "rootDir": "src",
-    "outDir": "dist",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "module": "nodenext",
     "strict": true,
     "skipLibCheck": true,
-    "removeComments": true,
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js",
-    "baseUrl": "src"
+    "noEmit": true
   },
-  "references": [
-    {
-      "path": "tsconfig.node.json"
-    }
+  "include": [
+    "eslint.config.mts",
+    "nightmare/vite.config.mts",
+    "possession/vite.config.mts"
   ]
 }

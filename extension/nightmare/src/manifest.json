@@ -1,0 +1,23 @@
+{
+  "manifest_version": 2,
+  "permissions": [
+    "<all_urls>",
+    "scripting"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "@nightmare"
+    }
+  },
+  "background": {
+    "scripts": [
+      "src/background.ts"
+    ]
+  },
+  "icons": {
+    "32": "32.png",
+    "48": "48.png",
+    "64": "64.png",
+    "128": "128.png"
+  }
+}
