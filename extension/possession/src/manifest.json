@@ -17,10 +17,10 @@
     "default_popup": "src/popup/index.html",
     "default_title": "possession",
     "default_icon": {
-      "32": "32.png",
-      "48": "48.png",
-      "64": "64.png",
-      "128": "128.png"
+      "32": "logo.svg",
+      "48": "logo.svg",
+      "64": "logo.svg",
+      "128": "logo.svg"
     }
   },
   "options_ui": {
@@ -34,9 +34,9 @@
     ]
   },
   "icons": {
-    "32": "32.png",
-    "48": "48.png",
-    "64": "64.png",
-    "128": "128.png"
+    "32": "logo.svg",
+    "48": "logo.svg",
+    "64": "logo.svg",
+    "128": "logo.svg"
   }
 }
