@@ -10,8 +10,8 @@ export default defineConfig([
   },
   js.configs.recommended,
   {
-    files: ["**/*.{ts,tsx,mts}"],
-    ...(solid as any),
+    files: ["**/*.{ts,tsx}"],
+    ...solid,
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -20,6 +20,19 @@ export default defineConfig([
       globals: {
         ...globals.browser,
         browser: "readonly",
+      },
+    },
+  },
+  {
+    files: [
+      "eslint.config.mts",
+      "nightmare/vite.config.mts",
+      "possession/vite.config.mts",
+    ],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: "./tsconfig.json",
       },
     },
   },
