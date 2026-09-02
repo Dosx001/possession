@@ -22,9 +22,21 @@ function init() {
         break;
       case "click":
         getTab()
-          .then((tab) => {
-            browser.tabs.executeScript(tab.id!, {
-              code: `document.querySelector("${data.query}")?.click()`,
+          .then((tab) =>
+            browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              args: [data.query],
+              func: (query: string) => {
+                const el = document.querySelector(query);
+                if (el) return el.click();
+                throw new Error("element not found");
+              },
+            }),
+          )
+          .then(() => {
+            sendMsg({
+              type: "click",
+              payload: "ok",
             });
           })
           .catch(sendErr);
@@ -53,20 +65,37 @@ function init() {
         break;
       case "focused":
         getTab()
-          .then((tab) => {
-            browser.tabs.executeScript(tab.id!, {
-              code: `browser.runtime.sendMessage({type:"focused",payload:document.activeElement.href})`,
+          .then((tab) =>
+            browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: () => document.activeElement.href,
+            }),
+          )
+          .then(([resp]) => {
+            sendMsg({
+              type: "focused",
+              payload: resp.result,
             });
           })
           .catch(sendErr);
         break;
       case "property":
         getTab()
-          .then((tab) => {
-            browser.tabs.executeScript(tab.id!, {
-              code:
-                `{const e=document.querySelector("${data.query}");` +
-                `browser.runtime.sendMessage({type:"text",payload:e?e.${data.prop}:""})}`,
+          .then((tab) =>
+            browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              args: [data.query, data.prop],
+              func: (query: string, prop: string) => {
+                const el = document.querySelector(query);
+                if (el) return el[prop];
+                throw new Error("element not found");
+              },
+            }),
+          )
+          .then(([resp]) => {
+            sendMsg({
+              type: "property",
+              payload: resp.result,
             });
           })
           .catch(sendErr);
@@ -85,11 +114,21 @@ function init() {
         break;
       case "text":
         getTab()
-          .then((tab) => {
-            browser.tabs.executeScript(tab.id!, {
-              code:
-                `{const e=document.querySelector("${data.query}");` +
-                `browser.runtime.sendMessage({type:"text",payload:e?e.innerText:""})}`,
+          .then((tab) =>
+            browser.scripting.executeScript({
+              target: { tabId: tab.id },
+              args: [data.query],
+              func: (query: string) => {
+                const el = document.querySelector(query);
+                if (el) return el.innerText;
+                throw new Error("element not found");
+              },
+            }),
+          )
+          .then(([resp]) => {
+            sendMsg({
+              type: "text",
+              payload: resp.result,
             });
           })
           .catch(sendErr);
@@ -167,3 +206,10 @@ browser.runtime.onSuspend.addListener(() => {
 browser.runtime.onMessage.addListener((msg: object) => {
   sendMsg(msg);
 });
+
+function keepAlive() {
+  browser.alarms.create({ when: Date.now() + 29_500 });
+}
+browser.alarms.onAlarm.addListener(keepAlive);
+browser.runtime.onStartup.addListener(keepAlive);
+browser.runtime.onInstalled.addListener(keepAlive);

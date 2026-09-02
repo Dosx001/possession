@@ -1,8 +1,8 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "permissions": [
-    "<all_urls>",
     "activeTab",
+    "alarms",
     "scripting",
     "storage",
     "tabs"
@@ -12,8 +12,13 @@
       "id": "@possession"
     }
   },
-  "browser_action": {
-    "browser_style": true,
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "action": {
     "default_popup": "src/popup/index.html",
     "default_title": "possession",
     "default_icon": {

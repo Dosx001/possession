@@ -260,8 +260,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3(vite@7.1.3(@types/node@24.3.0)(jiti@2.7.0)(lightningcss@1.32.0)(sass@1.103.1)(yaml@2.8.1))
       '@types/firefox-webext-browser':
-        specifier: ^120.0.4
-        version: 120.0.4
+        specifier: ^143.0.0
+        version: 143.0.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -947,6 +947,9 @@ packages:
 
   '@types/firefox-webext-browser@120.0.4':
     resolution: {integrity: sha512-lBrpf08xhiZBigrtdQfUaqX1UauwZ+skbFiL8u2Tdra/rklkKadYmIzTwkNZSWtuZ7OKpFqbE2HHfDoFqvZf6w==}
+
+  '@types/firefox-webext-browser@143.0.0':
+    resolution: {integrity: sha512-865dYKMOP0CllFyHmgXV4IQgVL51OSQQCwSoihQ17EwugePKFSAZRc0EI+y7Ly4q7j5KyURlA7LgRpFieO4JOw==}
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
@@ -3053,6 +3056,8 @@ snapshots:
   '@types/estree@1.0.8': {}
 
   '@types/firefox-webext-browser@120.0.4': {}
+
+  '@types/firefox-webext-browser@143.0.0': {}
 
   '@types/json-schema@7.0.15': {}
 
