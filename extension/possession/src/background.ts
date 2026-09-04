@@ -1,4 +1,4 @@
-import { Payload } from "types";
+import type { Payload } from "types";
 import { getTab } from "urls";
 
 let ws: WebSocket;
@@ -8,10 +8,10 @@ function init() {
   ws.onclose = () => {
     setTimeout(init, 1000);
   };
-  ws.onmessage = (ev) => {
+  ws.onmessage = (ev: MessageEvent<string>) => {
     let data: Payload;
     try {
-      data = JSON.parse(ev.data);
+      data = JSON.parse(ev.data) as Payload;
     } catch (err) {
       sendErr(err as Error);
       return;
@@ -24,11 +24,14 @@ function init() {
         getTab()
           .then((tab) =>
             browser.scripting.executeScript({
-              target: { tabId: tab.id },
+              target: { tabId: tab.id! },
               args: [data.query],
               func: (query: string) => {
-                const el = document.querySelector(query);
-                if (el) return el.click();
+                const el = document.querySelector<HTMLButtonElement>(query);
+                if (el) {
+                  el.click();
+                  return;
+                }
                 throw new Error("element not found");
               },
             }),
@@ -43,7 +46,9 @@ function init() {
         break;
       case "current":
         getTab()
-          .then((tab) => sendMsg({ type: "url", payload: tab.url }))
+          .then((tab) => {
+            sendMsg({ type: "url", payload: tab.url });
+          })
           .catch(sendErr);
         break;
       case "execute":
@@ -67,8 +72,8 @@ function init() {
         getTab()
           .then((tab) =>
             browser.scripting.executeScript({
-              target: { tabId: tab.id },
-              func: () => document.activeElement.href,
+              target: { tabId: tab.id! },
+              func: () => (document.activeElement as HTMLAnchorElement).href,
             }),
           )
           .then(([resp]) => {
@@ -83,12 +88,14 @@ function init() {
         getTab()
           .then((tab) =>
             browser.scripting.executeScript({
-              target: { tabId: tab.id },
+              target: { tabId: tab.id! },
               args: [data.query, data.prop],
               func: (query: string, prop: string) => {
-                const el = document.querySelector(query);
-                if (el) return el[prop];
-                throw new Error("element not found");
+                const el = document.querySelector<HTMLElement>(query);
+                if (!el) throw new Error("element not found");
+                const value = el.getAttribute(prop);
+                if (value) return value;
+                throw new Error("property not found");
               },
             }),
           )
@@ -102,24 +109,24 @@ function init() {
         break;
       case "reload":
         getTab({ title: data.regex })
-          .then((tab) => {
+          .then((tab) =>
             browser.tabs.reload(tab.id!).then(() => {
               sendMsg({
                 type: "reload",
                 payload: tab.id,
               });
-            });
-          })
+            }),
+          )
           .catch(sendErr);
         break;
       case "text":
         getTab()
           .then((tab) =>
             browser.scripting.executeScript({
-              target: { tabId: tab.id },
+              target: { tabId: tab.id! },
               args: [data.query],
               func: (query: string) => {
-                const el = document.querySelector(query);
+                const el = document.querySelector<HTMLElement>(query);
                 if (el) return el.innerText;
                 throw new Error("element not found");
               },
@@ -152,13 +159,11 @@ function init() {
             incognito: data.private ?? false,
           })
           .then((win) => {
-            const tab = win.tabs![0];
-            if (tab)
-              browser.tabs.onUpdated.addListener(handleUpdate, {
-                tabId: tab.id,
-                windowId: win.id,
-                properties: ["status"],
-              });
+            browser.tabs.onUpdated.addListener(handleUpdate, {
+              tabId: win.tabs![0].id,
+              windowId: win.id,
+              properties: ["status"],
+            });
           })
           .catch(sendErr);
         break;
@@ -208,7 +213,7 @@ browser.runtime.onMessage.addListener((msg: object) => {
 });
 
 function keepAlive() {
-  browser.alarms.create({ when: Date.now() + 29_500 });
+  browser.alarms.create({ when: Date.now() + 29_500 }).catch(console.error);
 }
 browser.alarms.onAlarm.addListener(keepAlive);
 browser.runtime.onStartup.addListener(keepAlive);

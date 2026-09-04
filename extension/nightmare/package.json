@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Optional extension for possession, enables arbitrary code execution",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "tsc && eslint .",
     "build": "vite build",
     "clean": "rm -rf dist",
     "package": "web-ext build -s dist -o",

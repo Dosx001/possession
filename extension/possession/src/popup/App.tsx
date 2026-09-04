@@ -1,9 +1,9 @@
 import { For, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import { UrlInfo } from "types";
+import type { UrlInfo } from "types";
 
 const App = () => {
-  let input!: HTMLInputElement;
+  let input: HTMLInputElement;
   const [urls, setUrls] = createStore<UrlInfo[]>([]);
   function addData(item: UrlInfo) {
     setUrls(
@@ -11,7 +11,7 @@ const App = () => {
         arr.push(item);
       }),
     );
-    browser.storage.sync.set({ urls });
+    browser.storage.sync.set({ urls }).catch(console.error);
   }
   function validate(el: HTMLInputElement): UrlInfo {
     const url = el.value;
@@ -24,16 +24,19 @@ const App = () => {
     }
   }
   onMount(() => {
-    browser.storage.sync.get("urls").then(({ urls }) => {
-      setUrls(urls || []);
-    });
+    browser.storage.sync
+      .get("urls")
+      .then(({ urls }: { urls?: UrlInfo[] }) => {
+        setUrls(urls || []);
+      })
+      .catch(console.error);
   });
   return (
-    <div class="m-auto max-w-96">
+    <div class="ma<UrlInfo[]>x-w-96 m-auto">
       <h1 class="text-center">Posession</h1>
       <div class="mb-2 flex">
         <input
-          ref={input}
+          ref={(el) => (input = el)}
           class="w-full"
           onKeyPress={(e) => {
             if (!input.value || e.key !== "Enter") return;
@@ -65,7 +68,7 @@ const App = () => {
                       arr[i()] = validate(e.target);
                     }),
                   );
-                  browser.storage.sync.set({ urls });
+                  browser.storage.sync.set({ urls }).catch(console.error);
                 }}
               />
               <button
@@ -75,7 +78,7 @@ const App = () => {
                       arr.splice(i(), 1);
                     }),
                   );
-                  browser.storage.sync.set({ urls });
+                  browser.storage.sync.set({ urls }).catch(console.error);
                 }}
               >
                 ✕

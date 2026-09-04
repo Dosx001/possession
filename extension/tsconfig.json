@@ -7,6 +7,7 @@
     "noEmit": true
   },
   "include": [
+    "vite.ts",
     "eslint.config.mts",
     "nightmare/vite.config.mts",
     "possession/vite.config.mts"

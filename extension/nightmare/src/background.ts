@@ -5,7 +5,9 @@ browser.runtime.onMessageExternal.addListener(
       .executeScript(msg.id, {
         code: msg.code,
       })
-      .then(() => sendResponse({}))
+      .then(() => {
+        sendResponse({});
+      })
       .catch(sendResponse);
     return true;
   },
