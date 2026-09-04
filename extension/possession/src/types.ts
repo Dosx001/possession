@@ -10,13 +10,12 @@ export type Payload =
     }
   | {
       type: "click" | "text";
-      id: number;
+      tab?: browser.tabs._QueryQueryInfo;
       query: string;
     }
   | {
       type: "execute";
-      code: string;
-      frame?: boolean;
+      details: browser.extensionTypes.InjectDetails;
     }
   | {
       type: "property";
@@ -25,15 +24,14 @@ export type Payload =
     }
   | {
       type: "url";
-      id: number;
-      url: string;
+      tabId: number;
+      url: browser.tabs._UpdateUpdateProperties;
     }
   | {
       type: "reload";
-      regex: string;
+      tab: browser.tabs._QueryQueryInfo;
     }
   | {
       type: "window";
-      url: string;
-      private?: boolean;
+      win: browser.windows._CreateCreateData;
     };

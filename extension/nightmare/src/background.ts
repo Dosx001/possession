@@ -1,10 +1,12 @@
 browser.runtime.onMessageExternal.addListener(
-  (msg: { id: number; code: string }, sender, sendResponse) => {
+  (
+    msg: { id: number; details: browser.extensionTypes.InjectDetails },
+    sender,
+    sendResponse,
+  ) => {
     if (sender.id !== "@possession") return;
     browser.tabs
-      .executeScript(msg.id, {
-        code: msg.code,
-      })
+      .executeScript(msg.id, msg.details)
       .then(() => {
         sendResponse({});
       })

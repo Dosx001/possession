@@ -21,7 +21,7 @@ function init() {
         ws.send("pong");
         break;
       case "click":
-        getTab()
+        getTab(data.tab)
           .then((tab) =>
             browser.scripting.executeScript({
               target: { tabId: tab.id! },
@@ -56,7 +56,7 @@ function init() {
           .then((tab) =>
             browser.runtime.sendMessage("@nightmare", {
               id: tab.id,
-              code: data.code,
+              details: data.details,
             }),
           )
           .then((resp: { error?: Error }) => {
@@ -108,7 +108,7 @@ function init() {
           .catch(sendErr);
         break;
       case "reload":
-        getTab({ title: data.regex })
+        getTab(data.tab)
           .then((tab) =>
             browser.tabs.reload(tab.id!).then(() => {
               sendMsg({
@@ -120,7 +120,7 @@ function init() {
           .catch(sendErr);
         break;
       case "text":
-        getTab()
+        getTab(data.tab)
           .then((tab) =>
             browser.scripting.executeScript({
               target: { tabId: tab.id! },
@@ -142,7 +142,7 @@ function init() {
         break;
       case "url":
         browser.tabs
-          .update(data.id, { url: data.url })
+          .update(data.tabId, data.url)
           .then(() => {
             sendMsg({
               type: "url",
@@ -153,11 +153,7 @@ function init() {
         break;
       case "window":
         browser.windows
-          .create({
-            url: data.url,
-            focused: true,
-            incognito: data.private ?? false,
-          })
+          .create(data.win)
           .then((win) => {
             browser.tabs.onUpdated.addListener(handleUpdate, {
               tabId: win.tabs![0].id,
