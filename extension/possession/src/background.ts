@@ -36,18 +36,13 @@ function init() {
               },
             }),
           )
-          .then(() => {
-            sendMsg({
-              type: "click",
-              payload: "ok",
-            });
-          })
+          .then(sendMsg)
           .catch(sendErr);
         break;
       case "current":
         getTab()
           .then((tab) => {
-            sendMsg({ type: "url", payload: tab.url });
+            sendMsg(tab.url);
           })
           .catch(sendErr);
         break;
@@ -61,10 +56,7 @@ function init() {
           )
           .then((resp: { error?: Error }) => {
             if (resp.error) throw resp.error;
-            sendMsg({
-              type: "execute",
-              payload: "ok",
-            });
+            sendMsg();
           })
           .catch(sendErr);
         break;
@@ -77,10 +69,7 @@ function init() {
             }),
           )
           .then(([resp]) => {
-            sendMsg({
-              type: "focused",
-              payload: resp.result,
-            });
+            sendMsg(resp.result);
           })
           .catch(sendErr);
         break;
@@ -100,10 +89,7 @@ function init() {
             }),
           )
           .then(([resp]) => {
-            sendMsg({
-              type: "property",
-              payload: resp.result,
-            });
+            sendMsg(resp.result);
           })
           .catch(sendErr);
         break;
@@ -111,10 +97,7 @@ function init() {
         getTab(data.tab)
           .then((tab) =>
             browser.tabs.reload(tab.id!).then(() => {
-              sendMsg({
-                type: "reload",
-                payload: tab.id,
-              });
+              sendMsg(tab.id);
             }),
           )
           .catch(sendErr);
@@ -133,23 +116,12 @@ function init() {
             }),
           )
           .then(([resp]) => {
-            sendMsg({
-              type: "text",
-              payload: resp.result,
-            });
+            sendMsg(resp.result);
           })
           .catch(sendErr);
         break;
       case "url":
-        browser.tabs
-          .update(data.tabId, data.url)
-          .then(() => {
-            sendMsg({
-              type: "url",
-              payload: "updated",
-            });
-          })
-          .catch(sendErr);
+        browser.tabs.update(data.tabId, data.url).then(sendMsg).catch(sendErr);
         break;
       case "window":
         browser.windows
@@ -164,10 +136,7 @@ function init() {
           .catch(sendErr);
         break;
       default:
-        sendMsg({
-          type: "error",
-          payload: "unknown type",
-        });
+        sendMsg("unknown type", false);
         break;
     }
   };
@@ -175,15 +144,12 @@ function init() {
 
 init();
 
-function sendMsg(payload: object) {
-  ws.send(JSON.stringify(payload));
+function sendMsg(payload: unknown = "", ok: boolean = true) {
+  ws.send(JSON.stringify({ ok, payload }));
 }
 
 function sendErr(err: Error) {
-  sendMsg({
-    type: "error",
-    payload: err.message,
-  });
+  sendMsg(err.message, false);
 }
 
 function handleUpdate(
@@ -202,10 +168,6 @@ function handleUpdate(
 
 browser.runtime.onSuspend.addListener(() => {
   ws.close();
-});
-
-browser.runtime.onMessage.addListener((msg: object) => {
-  sendMsg(msg);
 });
 
 function keepAlive() {
