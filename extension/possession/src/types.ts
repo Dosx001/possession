@@ -1,7 +1,6 @@
 export type UrlInfo = {
   url: string;
   valid: boolean;
-  prefix: boolean;
 };
 
 export type Payload =

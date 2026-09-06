@@ -16,11 +16,10 @@ const App = () => {
   function validate(el: HTMLInputElement): UrlInfo {
     const url = el.value;
     try {
-      const prefix = /^https?:\/\//.test(url);
-      new URL((prefix ? "" : "http://") + url);
-      return { url, valid: true, prefix };
+      new URL(url);
+      return { url, valid: true };
     } catch {
-      return { url, valid: false, prefix: false };
+      return { url, valid: false };
     }
   }
   onMount(() => {

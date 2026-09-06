@@ -26,13 +26,15 @@ export async function getTab(
   if (!tab) throw new Error("tab not found");
   if (!tab.url) throw new Error("tab has no url");
   const t_url = new URL(tab.url);
-  for (const { url, valid, prefix } of urls) {
+  for (const { url, valid } of urls) {
     if (!valid) continue;
-    const u_url = new URL((prefix ? "" : "http://") + url);
-    if (t_url.hostname === u_url.hostname) {
+    const u_url = new URL(url);
+    if (u_url.protocol !== t_url.protocol) continue;
+    if (u_url.protocol !== "file:") {
+      if (u_url.hostname !== t_url.hostname) continue;
       if (u_url.pathname === "/") return tab;
-      if (u_url.pathname === t_url.pathname) return tab;
     }
+    if (t_url.pathname.startsWith(u_url.pathname)) return tab;
   }
   throw new Error(`${tab.url} not allowed`);
 }
