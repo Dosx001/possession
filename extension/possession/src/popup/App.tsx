@@ -13,14 +13,27 @@ const App = () => {
     );
     browser.storage.sync.set({ urls }).catch(console.error);
   }
-  function validate(el: HTMLInputElement): UrlInfo {
-    const url = el.value;
+  function validate(el: HTMLInputElement): boolean {
     try {
-      new URL(url);
-      return { url, valid: true };
+      const url = new URL(el.value);
+      switch (url.protocol) {
+        case "file:":
+        case "http:":
+        case "https:":
+          break;
+        default:
+          return false;
+      }
     } catch {
-      return { url, valid: false };
+      return false;
     }
+    return true;
+  }
+  function createUrlInfo(el: HTMLInputElement): UrlInfo {
+    return {
+      url: el.value,
+      valid: validate(el),
+    };
   }
   onMount(() => {
     browser.storage.sync
@@ -39,14 +52,14 @@ const App = () => {
           class="w-full"
           onKeyPress={(e) => {
             if (!input.value || e.key !== "Enter") return;
-            addData(validate(input));
+            addData(createUrlInfo(input));
             input.value = "";
           }}
         />
         <button
           onClick={() => {
             if (!input.value) return;
-            addData(validate(input));
+            addData(createUrlInfo(input));
             input.value = "";
           }}
         >
@@ -64,7 +77,7 @@ const App = () => {
                 onChange={(e) => {
                   setUrls(
                     produce((arr) => {
-                      arr[i()] = validate(e.target);
+                      arr[i()] = createUrlInfo(e.target);
                     }),
                   );
                   browser.storage.sync.set({ urls }).catch(console.error);
