@@ -1,4 +1,4 @@
-import type { UrlInfo } from "types";
+import { stringfyPermission, type PermissionType, type UrlInfo } from "types";
 
 let urls: UrlInfo[] = [];
 
@@ -16,7 +16,19 @@ browser.storage.sync.onChanged.addListener(
   },
 );
 
+function checkPermissions(
+  permission: PermissionType,
+  permissions: PermissionType[],
+  url: string,
+): boolean {
+  if (permissions.includes(permission)) return true;
+  throw new Error(
+    `${stringfyPermission(permission)} permission not enabled for ${url}`,
+  );
+}
+
 export async function getTab(
+  permission: PermissionType,
   query?: browser.tabs._QueryQueryInfo,
 ): Promise<browser.tabs.Tab> {
   const [tab] = await browser.tabs.query(
@@ -26,15 +38,23 @@ export async function getTab(
   if (!tab) throw new Error("tab not found");
   if (!tab.url) throw new Error("tab has no url");
   const t_url = new URL(tab.url);
-  for (const { url, valid } of urls) {
+  for (const { url, valid, permissions } of urls) {
     if (!valid) continue;
     const u_url = new URL(url);
     if (u_url.protocol !== t_url.protocol) continue;
     if (u_url.protocol !== "file:") {
       if (u_url.hostname !== t_url.hostname) continue;
-      if (u_url.pathname === "/") return tab;
+      if (
+        u_url.pathname === "/" &&
+        checkPermissions(permission, permissions, url)
+      )
+        return tab;
     }
-    if (t_url.pathname.startsWith(u_url.pathname)) return tab;
+    if (
+      t_url.pathname.startsWith(u_url.pathname) &&
+      checkPermissions(permission, permissions, url)
+    )
+      return tab;
   }
   throw new Error(`${tab.url} not allowed`);
 }

@@ -1,3 +1,4 @@
+import Permissions from "components/permissions";
 import { For, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { UrlInfo } from "types";
@@ -8,7 +9,7 @@ const App = () => {
   function addData(item: UrlInfo) {
     setUrls(
       produce((arr) => {
-        arr.push(item);
+        arr.unshift(item);
       }),
     );
     browser.storage.sync.set({ urls }).catch(console.error);
@@ -33,6 +34,7 @@ const App = () => {
     return {
       url: el.value,
       valid: validate(el),
+      permissions: [],
     };
   }
   onMount(() => {
@@ -69,33 +71,46 @@ const App = () => {
       <div class="border-gray flex h-96 max-h-96 flex-col overflow-auto border bg-black shadow-lg shadow-black">
         <For each={urls}>
           {(item, i) => (
-            <div class="flex">
-              <input
-                value={item.url}
-                class="w-full"
-                style={{ color: item.valid ? "" : "red" }}
-                onChange={(e) => {
+            <>
+              <div class="flex">
+                <input
+                  value={item.url}
+                  class="w-full"
+                  style={{ color: item.valid ? "" : "red" }}
+                  onChange={(e) => {
+                    setUrls(
+                      produce((arr) => {
+                        arr[i()] = createUrlInfo(e.target);
+                      }),
+                    );
+                    browser.storage.sync.set({ urls }).catch(console.error);
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    setUrls(
+                      produce((arr) => {
+                        arr.splice(i(), 1);
+                      }),
+                    );
+                    browser.storage.sync.set({ urls }).catch(console.error);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <Permissions
+                perms={item.permissions}
+                action={(perms) => {
                   setUrls(
                     produce((arr) => {
-                      arr[i()] = createUrlInfo(e.target);
+                      arr[i()].permissions = perms;
                     }),
                   );
                   browser.storage.sync.set({ urls }).catch(console.error);
                 }}
               />
-              <button
-                onClick={() => {
-                  setUrls(
-                    produce((arr) => {
-                      arr.splice(i(), 1);
-                    }),
-                  );
-                  browser.storage.sync.set({ urls }).catch(console.error);
-                }}
-              >
-                ✕
-              </button>
-            </div>
+            </>
           )}
         </For>
       </div>

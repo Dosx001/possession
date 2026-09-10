@@ -1,4 +1,5 @@
 import type { Payload } from "types";
+import { Permission } from "types";
 import { getTab } from "urls";
 
 let ws: WebSocket;
@@ -21,7 +22,7 @@ function init() {
         ws.send("pong");
         break;
       case "click":
-        getTab(data.tab)
+        getTab(Permission.Click, data.tab)
           .then((tab) =>
             browser.scripting.executeScript({
               target: { tabId: tab.id! },
@@ -40,14 +41,14 @@ function init() {
           .catch(sendErr);
         break;
       case "current":
-        getTab()
+        getTab(Permission.Current)
           .then((tab) => {
             sendMsg(tab.url);
           })
           .catch(sendErr);
         break;
       case "execute":
-        getTab()
+        getTab(Permission.Execute)
           .then((tab) =>
             browser.runtime.sendMessage("@nightmare", {
               id: tab.id,
@@ -61,7 +62,7 @@ function init() {
           .catch(sendErr);
         break;
       case "focused":
-        getTab()
+        getTab(Permission.Focused)
           .then((tab) =>
             browser.scripting.executeScript({
               target: { tabId: tab.id! },
@@ -74,7 +75,7 @@ function init() {
           .catch(sendErr);
         break;
       case "property":
-        getTab()
+        getTab(Permission.Property)
           .then((tab) =>
             browser.scripting.executeScript({
               target: { tabId: tab.id! },
@@ -94,7 +95,7 @@ function init() {
           .catch(sendErr);
         break;
       case "reload":
-        getTab(data.tab)
+        getTab(Permission.Reload, data.tab)
           .then((tab) =>
             browser.tabs.reload(tab.id!).then(() => {
               sendMsg(tab.id);
@@ -103,7 +104,7 @@ function init() {
           .catch(sendErr);
         break;
       case "text":
-        getTab(data.tab)
+        getTab(Permission.Text, data.tab)
           .then((tab) =>
             browser.scripting.executeScript({
               target: { tabId: tab.id! },

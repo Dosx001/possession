@@ -3,19 +3,16 @@ import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 import webExtension, { readJsonFile } from "vite-plugin-web-extension";
 import type { Package } from "../vite.ts";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   build: {
     modulePreload: false,
   },
-  resolve: {
-    alias: {
-      urls: "src/urls.ts",
-    },
-  },
   plugins: [
     solid(),
     tailwindcss(),
+    tsconfigPaths(),
     webExtension({
       browser: "firefox",
       skipManifestValidation: true,
