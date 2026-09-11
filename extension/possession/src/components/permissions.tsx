@@ -18,18 +18,19 @@ const Permissions = (props: {
   });
   return (
     <div class="m-2">
-      <span class="border-gray w-fit rounded border-1 bg-black p-1">
+      <span class="border-gray rounded-l-md border p-1">
         <select
           ref={(el) => (select = el)}
-          class="text-gray cursor-pointer border-none bg-black"
+          class="text-gray cursor-pointer rounded-l-md border-none bg-black"
         >
           <For each={items}>
             {(item) => <option>{stringfyPermission(item)}</option>}
           </For>
         </select>
-        <span class="border-gray mx-1 border-1 border-r-0" />
+      </span>
+      <span class="border-gray rounded-r-md border bg-green-500 p-1">
         <button
-          class="border-none bg-transparent"
+          class="border-none bg-transparent p-0 font-bold text-white"
           onClick={() => {
             if (items.length === 0) return;
             const idx = select.selectedIndex;
@@ -49,7 +50,7 @@ const Permissions = (props: {
       <For each={selected}>
         {(item) => (
           <button
-            class="mb-1 ml-1"
+            class="mb-3 ml-1 border-none p-0"
             onClick={() => {
               setSelected(
                 produce((arr) => {
@@ -65,7 +66,12 @@ const Permissions = (props: {
               props.action(selected);
             }}
           >
-            {stringfyPermission(item)}│✕
+            <span class="rounded-l-md border bg-black p-1">
+              {stringfyPermission(item)}
+            </span>
+            <span class="border-gray rounded-r-md border bg-red-500 p-1 font-bold text-white">
+              ✕
+            </span>
           </button>
         )}
       </For>

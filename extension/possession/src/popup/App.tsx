@@ -46,7 +46,7 @@ const App = () => {
       .catch(console.error);
   });
   return (
-    <div class="ma<UrlInfo[]>x-w-96 m-auto">
+    <div class="m-auto w-96 max-w-96">
       <h1 class="text-center">Posession</h1>
       <div class="mb-2 flex">
         <input
@@ -59,6 +59,7 @@ const App = () => {
           }}
         />
         <button
+          class="bg-green-500 font-bold text-white"
           onClick={() => {
             if (!input.value) return;
             addData(createUrlInfo(input));
@@ -87,6 +88,7 @@ const App = () => {
                   }}
                 />
                 <button
+                  class="bg-red-500 text-white"
                   onClick={() => {
                     setUrls(
                       produce((arr) => {

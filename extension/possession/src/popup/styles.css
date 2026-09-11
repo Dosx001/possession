@@ -7,20 +7,22 @@
   --color-default: #0d1117;
 }
 
-body {
-  @apply bg-default text-gray m-4 font-sans;
-}
-
-button {
-  @apply text-gray border-gray cursor-pointer rounded-md border-2 bg-black;
-  &:active {
-    @apply opacity-50;
+@layer base {
+  body {
+    @apply bg-default text-gray m-4 font-sans;
   }
-}
 
-input {
-  @apply text-gray bg-black outline-none;
-  &:focus {
-    @apply bg-gray-700;
+  button {
+    @apply text-gray border-gray cursor-pointer rounded-md border-2 bg-black;
+    &:active {
+      @apply opacity-50;
+    }
+  }
+
+  input {
+    @apply text-gray bg-black outline-none;
+    &:focus {
+      @apply bg-gray-700;
+    }
   }
 }
