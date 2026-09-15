@@ -3,11 +3,17 @@ import { Permission } from "types";
 import { getTab } from "urls";
 
 let ws: WebSocket;
+let closed = false;
 
 function init() {
   ws = new WebSocket("ws://localhost:8080");
   ws.onclose = () => {
+    closed = true;
     setTimeout(init, 1000);
+  };
+  ws.onopen = () => {
+    if (closed) ws.send("ping");
+    closed = false;
   };
   ws.onmessage = (ev: MessageEvent<string>) => {
     let data: Payload;
