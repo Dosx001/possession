@@ -86,10 +86,12 @@ fn el_browser() !void {
             b_cv.wait(&b_mtx);
         const fd = browser;
         b_mtx.unlock();
+        var size: u64 = 0;
+        var mask: [4]u8 = .{ 0, 0, 0, 0 };
         while (true) {
             const n = posix.read(fd, &buf) catch break;
             if (n == 0) break;
-            decode(buf[0..n]) catch break;
+            decode(&size, &mask, &buf, n);
         }
         posix.close(fd);
         b_mtx.lock();
@@ -203,33 +205,40 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
     return true;
 }
 
-fn decode(buf: []u8) !void {
+fn decode(
+    size: *u64,
+    mask: *[4]u8,
+    buf: *[1024]u8,
+    buf_len: usize,
+) void {
     c_mtx.lock();
     const fd = client;
     c_mtx.unlock();
-    var len: usize = (buf[1] & 0x7F);
-    var index: usize =
-        switch (len) {
-            126 => blk: {
-                len = @as(u16, buf[2]) << 8 | buf[3];
-                break :blk 4;
-            },
-            127 => blk: {
-                len = 0;
-                inline for (2..10) |i| {
-                    len = len << 8 | buf[i];
-                }
-                break :blk 10;
-            },
-            else => 2,
-        };
-    const key = buf[index .. index + 4];
-    index += 4;
-    const payload = buf[index .. index + len];
+    const payload =
+        if (size.* == 0) slice: {
+            size.* = buf[1] & 0x7F;
+            const idx: usize =
+                switch (size.*) {
+                    126 => idx: {
+                        size.* = @as(u16, buf[2]) << 8 | buf[3];
+                        break :idx 4;
+                    },
+                    127 => idx: {
+                        inline for (2..10) |i| {
+                            size.* = size.* << 8 | buf[i];
+                        }
+                        break :idx 10;
+                    },
+                    else => 2,
+                };
+            const offset = idx + 4;
+            @memcpy(mask, buf[idx..offset]);
+            break :slice buf[offset..buf_len];
+        } else buf[0..buf_len];
+    size.* -= payload.len;
     for (payload, 0..) |*b, i| {
-        b.* = b.* ^ key[i % 4];
+        b.* ^= mask[i % 4];
     }
-    if (payload.len == 2) return error.Closed;
     _ = posix.write(fd, payload) catch |e| {
         std.log.err("Client payload failed: {}", .{e});
     };
