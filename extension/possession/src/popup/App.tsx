@@ -1,7 +1,7 @@
 import Permissions from "components/permissions";
 import { For, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
-import type { UrlInfo } from "types";
+import type { PermissionType, UrlInfo } from "types";
 
 const App = () => {
   let input: HTMLInputElement;
@@ -30,11 +30,14 @@ const App = () => {
     }
     return true;
   }
-  function createUrlInfo(el: HTMLInputElement): UrlInfo {
+  function createUrlInfo(
+    el: HTMLInputElement,
+    perms?: PermissionType[],
+  ): UrlInfo {
     return {
       url: el.value,
       valid: validate(el),
-      permissions: [],
+      permissions: perms || [],
     };
   }
   onMount(() => {
@@ -81,7 +84,7 @@ const App = () => {
                   onChange={(e) => {
                     setUrls(
                       produce((arr) => {
-                        arr[i()] = createUrlInfo(e.target);
+                        arr[i()] = createUrlInfo(e.target, item.permissions);
                       }),
                     );
                     browser.storage.sync.set({ urls }).catch(console.error);
