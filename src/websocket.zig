@@ -102,17 +102,17 @@ fn el_browser() !void {
 
 fn el_client() !void {
     var buf: [1024]u8 = undefined;
-    var msg: [1024]u8 = undefined;
     while (true) {
         c_mtx.lock();
         while (client == -1)
             c_cv.wait(&c_mtx);
         const fd = client;
         c_mtx.unlock();
+        var size: u64 = 0;
         while (true) {
-            const n = posix.read(fd, &msg) catch break;
+            const n = posix.read(fd, &buf) catch break;
             if (n == 0) break;
-            message(&buf, msg[0..n]) catch break;
+            message(&buf, n, &size) catch break;
         }
         posix.close(fd);
         c_mtx.lock();
@@ -244,42 +244,61 @@ fn decode(
     };
 }
 
-fn message(buf: []u8, msg: []const u8) !void {
+fn msg_header(fd: c_int, len: u64) !void {
+    if (len < 126) {
+        _ = posix.write(fd, &[2]u8{ 0x81, @intCast(len) }) catch |e| {
+            std.log.err("Message header write failed: {}", .{e});
+            return e;
+        };
+    } else if (len <= std.math.maxInt(u16)) {
+        _ = posix.write(fd, &[4]u8{
+            0x81,
+            0x7E,
+            @intCast((len >> 8) & 0xFF),
+            @intCast(len & 0xFF),
+        }) catch |e| {
+            std.log.err("Message header write failed: {}", .{e});
+            return e;
+        };
+    } else {
+        var header = [10]u8{ 0x81, 0x7F, 56, 48, 40, 32, 24, 16, 8, 0 };
+        inline for (2..10) |i| {
+            header[i] = @intCast((len >> @intCast(header[i])) & 0xFF);
+        }
+        _ = posix.write(fd, &header) catch |e| {
+            std.log.err("Message header write failed: {}", .{e});
+            return e;
+        };
+    }
+}
+
+fn message(
+    buf: *[1024]u8,
+    len: usize,
+    size: *u64,
+) !void {
     b_mtx.lock();
     const fd = browser;
     b_mtx.unlock();
-    if (msg.len < 126) {
-        const slice = std.fmt.bufPrint(
-            buf,
-            "00{s}",
-            .{msg},
-        ) catch |e| {
-            std.log.err("Message format failed: {}", .{e});
+    const offset = if (size.* == 0) blk: {
+        if (buf[0] < 0x9) {
+            buf[0] += 1;
+            for (1..buf[0]) |i| {
+                size.* = size.* << 8 | buf[i];
+            }
+            msg_header(fd, size.*) catch |e|
+                return e;
+            break :blk buf[0];
+        }
+        size.* = len;
+        msg_header(fd, len) catch |e|
             return e;
-        };
-        buf[0] = 0x81;
-        buf[1] = @intCast(msg.len);
-        _ = posix.write(fd, slice) catch |e| {
-            std.log.err("Message write failed: {}", .{e});
-            return e;
-        };
-        std.log.info("Record {s}", .{msg});
-        return;
-    }
-    const slice = std.fmt.bufPrint(
-        buf,
-        "0000{s}",
-        .{msg},
-    ) catch |e| {
-        std.log.err("Message(16-bit) format failed: {}", .{e});
-        return e;
-    };
-    buf[0] = 0x81;
-    buf[1] = 0x7E;
-    buf[2] = @intCast((msg.len >> 8) & 0xFF);
-    buf[3] = @intCast(msg.len & 0xFF);
-    _ = posix.write(fd, slice) catch |e| {
-        std.log.err("Message(16-bit) write failed: {}", .{e});
+        break :blk 0;
+    } else 0;
+    size.* -= len - offset;
+    const msg = buf[offset..len];
+    _ = posix.write(fd, msg) catch |e| {
+        std.log.err("Message payload write failed: {}", .{e});
         return e;
     };
     std.log.info("Record {s}", .{msg});
