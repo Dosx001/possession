@@ -5,23 +5,33 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{
         .preferred_optimize_mode = .ReleaseFast,
     });
-
+    const log = b.addTranslateC(.{
+        .root_source_file = b.path("include/log.h"),
+        .target = target,
+        .optimize = optimize,
+    });
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{
+                .name = "log",
+                .module = log.createModule(),
+            },
+        },
     });
     const exe = b.addExecutable(.{
         .name = "possession",
         .root_module = exe_mod,
     });
     b.installArtifact(exe);
-    exe.linkLibC();
 
     const client_mod = b.createModule(.{
         .root_source_file = b.path("src/client.zig"),
         .target = target,
         .optimize = optimize,
+        .link_libc = true,
     });
     const client = b.addExecutable(.{
         .name = "possession-client",

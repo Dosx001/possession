@@ -1,36 +1,37 @@
+const errno = @import("errno.zig");
 const std = @import("std");
 
 const posix = std.posix;
 
-const Msg = struct {
-    id: u32,
-    tabId: u32,
-};
-const Payload = struct {
-    type: []const u8,
-    payload: []const u8,
-};
-
 var fd: posix.socket_t = undefined;
 var buf: [1024]u8 = undefined;
 
-pub fn main() void {
-    fd = posix.socket(
+pub fn main(init: std.process.Init) void {
+    fd = posix.system.socket(
         posix.AF.INET,
         posix.SOCK.STREAM,
         0,
-    ) catch |e| {
-        std.log.err("socket failed: {}", .{e});
+    );
+    errno.check(fd) catch {
+        errno.log("Websocket socket failed: {}");
         return;
     };
-    defer posix.close(fd);
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 8080);
-    posix.connect(
+    defer _ = posix.system.close(fd);
+    const addr = posix.system.sockaddr{
+        .family = posix.AF.INET,
+        .data = .{
+            0x1F, 0x90, // 8080
+            127, 0, 0, 1, // 127.0.0.1
+            0,   0, 0, 0,
+            0,   0, 0, 0,
+        },
+    };
+    errno.check(posix.system.connect(
         fd,
-        &addr.any,
-        addr.getOsSockLen(),
-    ) catch |e| {
-        std.log.err("connect failed: {}", .{e});
+        &addr,
+        @sizeOf(posix.system.sockaddr),
+    )) catch {
+        errno.log("Websocket connect failed: {}");
         return;
     };
     _ = message("client", .{}) catch unreachable;
@@ -39,17 +40,36 @@ pub fn main() void {
         return;
     }
     const json = message_json(
-        \\{{"type":"window","url":"https://www.google.com/search?q=websocket","private":true}}
-    , .{}, Msg) catch unreachable;
-    _ = message(
-        \\{{"type":"text","id":{d},"query":"h1"}}
-    , .{json.value.tabId}) catch unreachable;
-    _ = message(
-        \\{{"type":"text","id":{d},"query":"h3"}}
-    , .{json.value.tabId}) catch unreachable;
-    _ = message(
-        \\{{"type":"url","url":"https://www.google.com/search?q=zig"}}
-    , .{}) catch unreachable;
+        \\{{"type":"window","win":{{"url":"https://www.google.com/search?q=websocket","incognito":true}}}}
+    , .{}, struct {
+        ok: bool,
+        payload: struct {
+            id: i32,
+            tabId: i32,
+        },
+    }) catch unreachable;
+    std.log.info("{}", .{json.value});
+    var n = message(
+        \\{{"type":"text","tab":{{"windowId":{}}},"query":"#search h3"}}
+    ,
+        .{json.value.payload.id},
+    ) catch unreachable;
+    std.log.info("{s}", .{buf[0..n]});
+    n = message(
+        \\{{"type":"url","tabId":{},"url":{{"url":"https://www.google.com/search?q=zig"}}}}
+    ,
+        .{json.value.payload.tabId},
+    ) catch unreachable;
+    while (buf[n - 1] != '}') {
+        n = posix.read(fd, &buf) catch unreachable;
+    }
+    init.io.sleep(.fromMilliseconds(500), .awake) catch unreachable;
+    n = message(
+        \\{{"type":"text","tab":{{"windowId":{}}},"query":"#search h3"}}
+    ,
+        .{json.value.payload.id},
+    ) catch unreachable;
+    std.log.info("{s}", .{buf[0..n]});
 }
 
 fn message_json(
@@ -70,15 +90,15 @@ fn message(
     comptime fmt: []const u8,
     args: anytype,
 ) !usize {
-    _ = posix.send(
+    const slice = try std.fmt.bufPrint(&buf, fmt, args);
+    errno.check(@intCast(posix.system.write(
         fd,
-        try std.fmt.bufPrint(&buf, fmt, args),
-        0,
-    ) catch |err| {
-        std.log.err("send failed: {}", .{err});
+        slice.ptr,
+        slice.len,
+    ))) catch |err| {
+        errno.log("Message write failed: {}");
         return err;
     };
     const len = try posix.read(fd, &buf);
-    std.debug.print("{s}\n", .{buf[0..len]});
     return len;
 }

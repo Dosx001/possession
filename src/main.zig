@@ -5,6 +5,6 @@ pub const std_options: std.Options = .{
     .logFn = @import("log.zig").logger,
 };
 
-pub fn main() !void {
-    ws.init() catch return;
+pub fn main(init: std.process.Init) void {
+    ws.init(init.io) catch return;
 }

@@ -1,22 +1,36 @@
+const errno = @import("errno.zig");
 const sig = @import("signal.zig");
 const std = @import("std");
 
 const posix = std.posix;
 
+var Io: std.Io = undefined;
 var browser: posix.socket_t = -1;
-var b_mtx = std.Thread.Mutex{};
-var b_cv = std.Thread.Condition{};
+var b_mtx = std.Io.Mutex{ .state = .init(.unlocked) };
+var b_cv = std.Io.Condition{
+    .state = .init(.{ .waiters = 0, .signals = 0 }),
+    .epoch = .init(0),
+};
 var client: posix.socket_t = -1;
-var c_mtx = std.Thread.Mutex{};
-var c_cv = std.Thread.Condition{};
+var c_mtx = std.Io.Mutex{ .state = .init(.unlocked) };
+var c_cv = std.Io.Condition{
+    .state = .init(.{ .waiters = 0, .signals = 0 }),
+    .epoch = .init(0),
+};
 
-pub fn init() !void {
+pub fn init(io: std.Io) !void {
+    Io = io;
     sig.init(quit, exit);
-    const fd = posix.socket(posix.AF.INET, posix.SOCK.STREAM, 0) catch |e| {
-        std.log.err("Websocket socket failed: {}", .{e});
+    const fd = posix.system.socket(
+        posix.AF.INET,
+        posix.SOCK.STREAM,
+        0,
+    );
+    errno.check(fd) catch {
+        errno.log("Websocket socket failed: {}");
         return;
     };
-    defer posix.close(fd);
+    defer _ = posix.system.close(fd);
     posix.setsockopt(
         fd,
         posix.SOL.SOCKET,
@@ -35,16 +49,31 @@ pub fn init() !void {
         std.log.err("Server setsockopt failed: {}", .{e});
         return;
     };
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 8080);
-    posix.bind(fd, &addr.any, addr.getOsSockLen()) catch |e| {
-        std.log.err("Websocket bind failed: {}", .{e});
+    const addr = posix.system.sockaddr{
+        .family = posix.AF.INET,
+        .data = .{
+            0x1F, 0x90, // 8080
+            127, 0, 0, 1, // 127.0.0.1
+            0,   0, 0, 0,
+            0,   0, 0, 0,
+        },
+    };
+    errno.check(posix.system.bind(
+        fd,
+        &addr,
+        @sizeOf(posix.system.sockaddr),
+    )) catch {
+        errno.log("Websocket bind failed: {}");
         return;
     };
-    posix.listen(fd, 10) catch |e| {
-        std.log.err("Websocket listen failed: {}", .{e});
+    errno.check(posix.system.listen(
+        fd,
+        10,
+    )) catch {
+        errno.log("Websocket listen failed: {}");
         return;
     };
-    std.log.info("Websocket listening: {any}", .{addr});
+    std.log.info("Websocket listening: {any}", .{addr.data});
     const browser_t = std.Thread.spawn(.{}, el_browser, .{}) catch |e| {
         std.log.err("Browser thread failed: {}", .{e});
         return;
@@ -54,24 +83,25 @@ pub fn init() !void {
         return;
     };
     while (true) {
-        const conn = posix.accept(fd, null, null, 0) catch |e| {
-            std.log.err("Websocket accept failed: {}", .{e});
-            continue;
+        const conn = posix.system.accept(fd, null, null);
+        errno.check(conn) catch {
+            errno.log("Websocket accept failed: {}");
+            return;
         };
         var buf: [1024]u8 = undefined;
         if (handshake(conn, &buf) catch {
-            posix.close(conn);
+            _ = posix.system.close(conn);
             continue;
         }) {
-            b_mtx.lock();
+            b_mtx.lock(Io) catch continue;
             browser = conn;
-            b_cv.signal();
-            b_mtx.unlock();
+            b_cv.signal(Io);
+            b_mtx.unlock(Io);
         } else {
-            c_mtx.lock();
+            c_mtx.lock(Io) catch continue;
             client = conn;
-            c_cv.signal();
-            c_mtx.unlock();
+            c_cv.signal(Io);
+            c_mtx.unlock(Io);
         }
     }
     browser_t.join();
@@ -81,11 +111,11 @@ pub fn init() !void {
 fn el_browser() !void {
     var buf: [1024]u8 = undefined;
     while (true) {
-        b_mtx.lock();
+        b_mtx.lock(Io) catch continue;
         while (browser == -1)
-            b_cv.wait(&b_mtx);
+            b_cv.wait(Io, &b_mtx) catch continue;
         const fd = browser;
-        b_mtx.unlock();
+        b_mtx.unlock(Io);
         var size: u64 = 0;
         var mask: [4]u8 = .{ 0, 0, 0, 0 };
         while (true) {
@@ -93,31 +123,31 @@ fn el_browser() !void {
             if (n == 0) break;
             decode(&size, &mask, &buf, n);
         }
-        posix.close(fd);
-        b_mtx.lock();
+        _ = posix.system.close(fd);
+        b_mtx.lock(Io) catch continue;
         browser = -1;
-        b_mtx.unlock();
+        b_mtx.unlock(Io);
     }
 }
 
 fn el_client() !void {
     var buf: [1024]u8 = undefined;
     while (true) {
-        c_mtx.lock();
+        c_mtx.lock(Io) catch continue;
         while (client == -1)
-            c_cv.wait(&c_mtx);
+            c_cv.wait(Io, &c_mtx) catch continue;
         const fd = client;
-        c_mtx.unlock();
+        c_mtx.unlock(Io);
         var size: u64 = 0;
         while (true) {
             const n = posix.read(fd, &buf) catch break;
             if (n == 0) break;
             message(&buf, n, &size) catch break;
         }
-        posix.close(fd);
-        c_mtx.lock();
+        _ = posix.system.close(fd);
+        c_mtx.lock(Io) catch continue;
         client = -1;
-        c_mtx.unlock();
+        c_mtx.unlock(Io);
     }
 }
 
@@ -126,36 +156,52 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
         std.log.err("Websocket header read failed: {}", .{e});
         return e;
     };
-    b_mtx.lock();
+    b_mtx.lock(Io) catch return false;
     const b_fd = browser;
-    b_mtx.unlock();
+    b_mtx.unlock(Io);
     if (std.mem.startsWith(u8, buf, "client")) {
-        c_mtx.lock();
+        c_mtx.lock(Io) catch return false;
         const c_fd = client;
-        c_mtx.unlock();
+        c_mtx.unlock(Io);
         if (c_fd == -1) {
             if (b_fd == -1) {
-                _ = posix.write(fd, &[1]u8{0x2}) catch |e| {
-                    std.log.err("Client rejection failed: {}", .{e});
+                errno.check(@intCast(posix.system.write(
+                    fd,
+                    &[1]u8{0x2},
+                    1,
+                ))) catch |e| {
+                    errno.log("Client rejection failed: {}");
                     return e;
                 };
             } else {
-                _ = posix.write(fd, &[1]u8{0x1}) catch |e| {
-                    std.log.err("Client handshake failed: {}", .{e});
+                errno.check(@intCast(posix.system.write(
+                    fd,
+                    &[1]u8{0x1},
+                    1,
+                ))) catch |e| {
+                    errno.log("Client handshake failed: {}");
                     return e;
                 };
             }
         } else {
-            _ = posix.write(fd, &[1]u8{0x0}) catch |e| {
-                std.log.err("Client rejection failed: {}", .{e});
+            errno.check(@intCast(posix.system.write(
+                fd,
+                &[1]u8{0x0},
+                1,
+            ))) catch |e| {
+                errno.log("Client rejection failed: {}");
                 return e;
             };
         }
         return false;
     }
     if (b_fd != -1) {
-        _ = posix.write(fd, &[1]u8{0x0}) catch |e| {
-            std.log.err("Client rejection failed: {}", .{e});
+        errno.check(@intCast(posix.system.write(
+            fd,
+            &[1]u8{0x0},
+            1,
+        ))) catch |e| {
+            errno.log("Client rejection failed: {}");
             return e;
         };
         return error.AlreadyInUse;
@@ -198,8 +244,12 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
         std.log.err("Handshake format failed: {}", .{e});
         return e;
     };
-    _ = posix.write(fd, slice) catch |e| {
-        std.log.err("Handshake write failed: {}", .{e});
+    errno.check(@intCast(posix.system.write(
+        fd,
+        slice.ptr,
+        slice.len,
+    ))) catch |e| {
+        errno.log("Handshake write failed: {}");
         return e;
     };
     return true;
@@ -211,9 +261,9 @@ fn decode(
     buf: *[1024]u8,
     buf_len: usize,
 ) void {
-    c_mtx.lock();
+    c_mtx.lock(Io) catch return;
     const fd = client;
-    c_mtx.unlock();
+    c_mtx.unlock(Io);
     const payload =
         if (size.* == 0) slice: {
             size.* = buf[1] & 0x7F;
@@ -239,25 +289,38 @@ fn decode(
     for (payload, 0..) |*b, i| {
         b.* ^= mask[i % 4];
     }
-    _ = posix.write(fd, payload) catch |e| {
-        std.log.err("Client payload failed: {}", .{e});
+    errno.check(@intCast(posix.system.write(
+        fd,
+        payload.ptr,
+        payload.len,
+    ))) catch {
+        errno.log("Client payload failed: {}");
+        return;
     };
 }
 
 fn msg_header(fd: c_int, len: u64) !void {
     if (len < 126) {
-        _ = posix.write(fd, &[2]u8{ 0x81, @intCast(len) }) catch |e| {
-            std.log.err("Message header write failed: {}", .{e});
+        errno.check(@intCast(posix.system.write(
+            fd,
+            &[2]u8{ 0x81, @intCast(len) },
+            2,
+        ))) catch |e| {
+            errno.log("Message header failed: {}");
             return e;
         };
     } else if (len <= std.math.maxInt(u16)) {
-        _ = posix.write(fd, &[4]u8{
-            0x81,
-            0x7E,
-            @intCast((len >> 8) & 0xFF),
-            @intCast(len & 0xFF),
-        }) catch |e| {
-            std.log.err("Message header write failed: {}", .{e});
+        errno.check(@intCast(posix.system.write(
+            fd,
+            &[4]u8{
+                0x81,
+                0x7E,
+                @intCast((len >> 8) & 0xFF),
+                @intCast(len & 0xFF),
+            },
+            4,
+        ))) catch |e| {
+            errno.log("Message(16-bit) header failed: {}");
             return e;
         };
     } else {
@@ -265,8 +328,12 @@ fn msg_header(fd: c_int, len: u64) !void {
         inline for (2..10) |i| {
             header[i] = @intCast((len >> @intCast(header[i])) & 0xFF);
         }
-        _ = posix.write(fd, &header) catch |e| {
-            std.log.err("Message header write failed: {}", .{e});
+        errno.check(@intCast(posix.system.write(
+            fd,
+            &header,
+            10,
+        ))) catch |e| {
+            errno.log("Message(64-bit) header failed: {}");
             return e;
         };
     }
@@ -277,9 +344,9 @@ fn message(
     len: usize,
     size: *u64,
 ) !void {
-    b_mtx.lock();
+    b_mtx.lock(Io) catch return;
     const fd = browser;
-    b_mtx.unlock();
+    b_mtx.unlock(Io);
     const offset = if (size.* == 0) blk: {
         if (buf[0] < 0x9) {
             buf[0] += 1;
@@ -297,22 +364,32 @@ fn message(
     } else 0;
     size.* -= len - offset;
     const msg = buf[offset..len];
-    _ = posix.write(fd, msg) catch |e| {
-        std.log.err("Message payload write failed: {}", .{e});
+    errno.check(@intCast(posix.system.write(
+        fd,
+        msg.ptr,
+        msg.len,
+    ))) catch |e| {
+        errno.log("Message payload write failed: {}");
         return e;
     };
     std.log.info("Record {s}", .{msg});
 }
 
-fn quit(_: c_int) callconv(.c) void {
+fn quit(_: posix.SIG) callconv(.c) void {
     if (0 < browser) {
-        _ = posix.write(browser, &[2]u8{ 0x88, 0x00 }) catch |e|
-            std.log.err("CLeanup failed: {}", .{e});
+        errno.check(@intCast(posix.system.write(
+            browser,
+            &[2]u8{ 0x88, 0x00 },
+            2,
+        ))) catch {
+            errno.log("Cleanup failed: {}");
+            return;
+        };
     }
-    std.posix.exit(0);
+    posix.system.exit(0);
 }
 
-fn exit(signal: c_int) callconv(.c) void {
+fn exit(signal: posix.SIG) callconv(.c) void {
     switch (signal) {
         posix.SIG.ILL => std.log.err("Illegal instruction", .{}),
         posix.SIG.ABRT => std.log.err("Error program aborted", .{}),
@@ -320,9 +397,14 @@ fn exit(signal: c_int) callconv(.c) void {
         else => {},
     }
     if (0 < browser) {
-        _ = posix.write(browser, &[2]u8{ 0x88, 0x00 }) catch |e| {
-            std.log.err("CLeanup failed: {}", .{e});
+        errno.check(@intCast(posix.system.write(
+            browser,
+            &[2]u8{ 0x88, 0x00 },
+            2,
+        ))) catch {
+            errno.log("Cleanup failed: {}");
+            return;
         };
     }
-    std.posix.exit(1);
+    posix.system.exit(1);
 }

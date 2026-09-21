@@ -1,7 +1,5 @@
+const log = @import("log");
 const std = @import("std");
-const c = @cImport({
-    @cInclude("syslog.h");
-});
 
 pub fn logger(
     comptime level: std.log.Level,
@@ -9,44 +7,24 @@ pub fn logger(
     comptime format: []const u8,
     args: anytype,
 ) void {
-    const scope_name = if (scope == .default) "" else "(" ++ @tagName(scope) ++ "): ";
+    var buf: [1032]u8 = undefined;
     if (@import("builtin").mode == .Debug) {
-        std.debug.lockStdErr();
-        defer std.debug.unlockStdErr();
-        const stderr = std.fs.File.stderr().deprecatedWriter();
-        nosuspend stderr.print(
-            @tagName(level) ++ "|" ++ scope_name ++ format ++ "\n",
-            args,
-        ) catch return;
+        const io = std.Options.debug_io;
+        const prev = io.swapCancelProtection(.blocked);
+        defer _ = io.swapCancelProtection(prev);
+        const stderr = std.debug.lockStderr(&buf).terminal();
+        defer std.debug.unlockStderr();
+        std.log.defaultLogFileTerminal(level, scope, format, args, stderr) catch {};
     }
-    var buf: [128]u8 = undefined;
     const msg = std.fmt.bufPrintZ(
         &buf,
-        scope_name ++ format,
+        format,
         args,
-    ) catch {
-        const alloc_msg = std.fmt.allocPrintSentinel(
-            std.heap.c_allocator,
-            scope_name ++ format,
-            args,
-            0,
-        ) catch |e| {
-            std.log.err("Logging failed: {}", .{e});
-            return;
-        };
-        c.syslog(switch (level) {
-            .err => c.LOG_ERR,
-            .warn => c.LOG_WARNING,
-            .info => c.LOG_INFO,
-            .debug => c.LOG_DEBUG,
-        }, "%s", alloc_msg.ptr);
-        std.heap.c_allocator.free(alloc_msg);
-        return;
-    };
-    c.syslog(switch (level) {
-        .err => c.LOG_ERR,
-        .warn => c.LOG_WARNING,
-        .info => c.LOG_INFO,
-        .debug => c.LOG_DEBUG,
+    ) catch return;
+    log.syslog(switch (level) {
+        .err => log.LOG_ERR,
+        .warn => log.LOG_WARNING,
+        .info => log.LOG_INFO,
+        .debug => log.LOG_DEBUG,
     }, "%s", msg.ptr);
 }

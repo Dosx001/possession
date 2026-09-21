@@ -6,7 +6,7 @@ let ws: WebSocket;
 let closed = false;
 
 function init() {
-  ws = new WebSocket("ws://localhost:8080");
+  ws = new WebSocket("ws://127.0.0.1:8080");
   ws.onclose = () => {
     closed = true;
     setTimeout(init, 1000);
