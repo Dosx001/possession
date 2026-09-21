@@ -121,7 +121,7 @@ fn el_browser() !void {
         while (true) {
             const n = posix.read(fd, &buf) catch break;
             if (n == 0) break;
-            decode(&size, &mask, &buf, n);
+            decode(&size, &mask, &buf, n) catch break;
         }
         _ = posix.system.close(fd);
         b_mtx.lock(Io) catch continue;
@@ -260,7 +260,7 @@ fn decode(
     mask: *[4]u8,
     buf: *[1024]u8,
     buf_len: usize,
-) void {
+) !void {
     c_mtx.lock(Io) catch return;
     const fd = client;
     c_mtx.unlock(Io);
@@ -286,6 +286,8 @@ fn decode(
             break :slice buf[offset..buf_len];
         } else buf[0..buf_len];
     size.* -= payload.len;
+    if (payload.len == 2)
+        return error.Closed;
     for (payload, 0..) |*b, i| {
         b.* ^= mask[i % 4];
     }
