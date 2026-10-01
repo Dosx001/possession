@@ -6,7 +6,6 @@ const posix = std.posix;
 
 const Options = @import("cli.zig").Options;
 
-var Io: std.Io = undefined;
 var browser: posix.socket_t = -1;
 var b_mtx = std.Io.Mutex{ .state = .init(.unlocked) };
 var b_cv = std.Io.Condition{
@@ -21,7 +20,6 @@ var c_cv = std.Io.Condition{
 };
 
 pub fn init(io: std.Io, opts: Options) !void {
-    Io = io;
     sig.init(quit, exit);
     const fd = posix.system.socket(
         posix.AF.INET,
@@ -67,11 +65,19 @@ pub fn init(io: std.Io, opts: Options) !void {
         opts.ip[3],
         opts.port,
     });
-    const browser_t = std.Thread.spawn(.{}, el_browser, .{}) catch |e| {
+    const browser_t = std.Thread.spawn(
+        .{},
+        el_browser,
+        .{io},
+    ) catch |e| {
         std.log.err("Browser thread failed: {}", .{e});
         return;
     };
-    const client_t = std.Thread.spawn(.{}, el_client, .{}) catch |e| {
+    const client_t = std.Thread.spawn(
+        .{},
+        el_client,
+        .{io},
+    ) catch |e| {
         std.log.err("Client thread failed: {}", .{e});
         return;
     };
@@ -82,80 +88,84 @@ pub fn init(io: std.Io, opts: Options) !void {
             return;
         };
         var buf: [1024]u8 = undefined;
-        if (handshake(conn, &buf) catch {
+        if (handshake(io, conn, &buf) catch {
             _ = posix.system.close(conn);
             continue;
         }) {
-            b_mtx.lock(Io) catch continue;
+            b_mtx.lock(io) catch continue;
             browser = conn;
-            b_cv.signal(Io);
-            b_mtx.unlock(Io);
+            b_cv.signal(io);
+            b_mtx.unlock(io);
         } else {
-            c_mtx.lock(Io) catch continue;
+            c_mtx.lock(io) catch continue;
             client = conn;
-            c_cv.signal(Io);
-            c_mtx.unlock(Io);
+            c_cv.signal(io);
+            c_mtx.unlock(io);
         }
     }
     browser_t.join();
     client_t.join();
 }
 
-fn el_browser() !void {
+fn el_browser(io: std.Io) !void {
     var buf: [1024]u8 = undefined;
     while (true) {
-        b_mtx.lock(Io) catch continue;
+        b_mtx.lock(io) catch continue;
         while (browser == -1)
-            b_cv.wait(Io, &b_mtx) catch continue;
+            b_cv.wait(io, &b_mtx) catch continue;
         const fd = browser;
-        b_mtx.unlock(Io);
+        b_mtx.unlock(io);
         var size: u64 = 0;
         var mask: [4]u8 = .{ 0, 0, 0, 0 };
         while (true) {
             const n = posix.read(fd, &buf) catch break;
             if (n == 0) break;
-            decode(&size, &mask, &buf, n) catch break;
+            decode(io, &size, &mask, &buf, n) catch break;
         }
         _ = posix.system.close(fd);
-        b_mtx.lock(Io) catch continue;
+        b_mtx.lock(io) catch continue;
         browser = -1;
-        b_mtx.unlock(Io);
+        b_mtx.unlock(io);
     }
 }
 
-fn el_client() !void {
+fn el_client(io: std.Io) !void {
     var buf: [1024]u8 = undefined;
     while (true) {
-        c_mtx.lock(Io) catch continue;
+        c_mtx.lock(io) catch continue;
         while (client == -1)
-            c_cv.wait(Io, &c_mtx) catch continue;
+            c_cv.wait(io, &c_mtx) catch continue;
         const fd = client;
-        c_mtx.unlock(Io);
+        c_mtx.unlock(io);
         var size: u64 = 0;
         while (true) {
             const n = posix.read(fd, &buf) catch break;
             if (n == 0) break;
-            message(&buf, n, &size) catch break;
+            message(io, &buf, n, &size) catch break;
         }
         _ = posix.system.close(fd);
-        c_mtx.lock(Io) catch continue;
+        c_mtx.lock(io) catch continue;
         client = -1;
-        c_mtx.unlock(Io);
+        c_mtx.unlock(io);
     }
 }
 
-fn handshake(fd: posix.socket_t, buf: []u8) !bool {
+fn handshake(
+    io: std.Io,
+    fd: posix.socket_t,
+    buf: []u8,
+) !bool {
     _ = posix.read(fd, buf) catch |e| {
         std.log.err("Websocket header read failed: {}", .{e});
         return e;
     };
-    b_mtx.lock(Io) catch return false;
+    b_mtx.lock(io) catch return false;
     const b_fd = browser;
-    b_mtx.unlock(Io);
+    b_mtx.unlock(io);
     if (std.mem.startsWith(u8, buf, "client")) {
-        c_mtx.lock(Io) catch return false;
+        c_mtx.lock(io) catch return false;
         const c_fd = client;
-        c_mtx.unlock(Io);
+        c_mtx.unlock(io);
         if (c_fd == -1) {
             if (b_fd == -1) {
                 errno.check(@intCast(posix.system.write(
@@ -249,14 +259,15 @@ fn handshake(fd: posix.socket_t, buf: []u8) !bool {
 }
 
 fn decode(
+    io: std.Io,
     size: *u64,
     mask: *[4]u8,
     buf: *[1024]u8,
     buf_len: usize,
 ) !void {
-    c_mtx.lock(Io) catch return;
+    c_mtx.lock(io) catch return;
     const fd = client;
-    c_mtx.unlock(Io);
+    c_mtx.unlock(io);
     const payload =
         if (size.* == 0) slice: {
             size.* = buf[1] & 0x7F;
@@ -335,13 +346,14 @@ fn msg_header(fd: c_int, len: u64) !void {
 }
 
 fn message(
+    io: std.Io,
     buf: *[1024]u8,
     len: usize,
     size: *u64,
 ) !void {
-    b_mtx.lock(Io) catch return;
+    b_mtx.lock(io) catch return;
     const fd = browser;
-    b_mtx.unlock(Io);
+    b_mtx.unlock(io);
     const offset = if (size.* == 0) blk: {
         if (buf[0] < 0x9) {
             buf[0] += 1;
