@@ -8,18 +8,22 @@ pub fn logger(
     args: anytype,
 ) void {
     var buf: [1032]u8 = undefined;
-    if (@import("builtin").mode == .Debug) {
+    if (std.posix.system.isatty(
+        std.posix.system.STDERR_FILENO,
+    ) == 1) {
         const io = std.Options.debug_io;
         const prev = io.swapCancelProtection(.blocked);
         defer _ = io.swapCancelProtection(prev);
         const stderr = std.debug.lockStderr(&buf).terminal();
         defer std.debug.unlockStderr();
         std.log.defaultLogFileTerminal(level, scope, format, args, stderr) catch {};
+        return;
     }
-    const msg = std.fmt.bufPrintZ(
+    const msg = std.fmt.bufPrintSentinel(
         &buf,
         format,
         args,
+        0,
     ) catch return;
     log.syslog(switch (level) {
         .err => log.LOG_ERR,
