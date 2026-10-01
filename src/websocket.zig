@@ -4,6 +4,8 @@ const std = @import("std");
 
 const posix = std.posix;
 
+const Options = @import("cli.zig").Options;
+
 var Io: std.Io = undefined;
 var browser: posix.socket_t = -1;
 var b_mtx = std.Io.Mutex{ .state = .init(.unlocked) };
@@ -18,7 +20,7 @@ var c_cv = std.Io.Condition{
     .epoch = .init(0),
 };
 
-pub fn init(io: std.Io) !void {
+pub fn init(io: std.Io, opts: Options) !void {
     Io = io;
     sig.init(quit, exit);
     const fd = posix.system.socket(
@@ -31,31 +33,16 @@ pub fn init(io: std.Io) !void {
         return;
     };
     defer _ = posix.system.close(fd);
-    posix.setsockopt(
-        fd,
-        posix.SOL.SOCKET,
-        posix.SO.REUSEADDR,
-        &std.mem.toBytes(@as(c_int, 1)),
-    ) catch |e| {
-        std.log.err("Server setsockopt failed: {}", .{e});
-        return;
-    };
-    posix.setsockopt(
-        fd,
-        posix.SOL.SOCKET,
-        posix.SO.REUSEPORT,
-        &std.mem.toBytes(@as(c_int, 1)),
-    ) catch |e| {
-        std.log.err("Server setsockopt failed: {}", .{e});
-        return;
-    };
     const addr = posix.system.sockaddr{
         .family = posix.AF.INET,
         .data = .{
-            0x1F, 0x90, // 8080
-            127, 0, 0, 1, // 127.0.0.1
-            0,   0, 0, 0,
-            0,   0, 0, 0,
+            @truncate(opts.port >> 8), @truncate(opts.port),
+            opts.ip[0],                opts.ip[1],
+            opts.ip[2],                opts.ip[3],
+            0,                         0,
+            0,                         0,
+            0,                         0,
+            0,                         0,
         },
     };
     errno.check(posix.system.bind(
@@ -73,7 +60,13 @@ pub fn init(io: std.Io) !void {
         errno.log("Websocket listen failed: {}");
         return;
     };
-    std.log.info("Websocket listening: {any}", .{addr.data});
+    std.log.info("Websocket listening: {d}.{d}.{d}.{d}:{d}", .{
+        opts.ip[0],
+        opts.ip[1],
+        opts.ip[2],
+        opts.ip[3],
+        opts.port,
+    });
     const browser_t = std.Thread.spawn(.{}, el_browser, .{}) catch |e| {
         std.log.err("Browser thread failed: {}", .{e});
         return;

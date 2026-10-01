@@ -1,4 +1,5 @@
 const std = @import("std");
+const pkg = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -26,6 +27,10 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
     b.installArtifact(exe);
+
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", pkg.version);
+    exe.root_module.addOptions("build", options);
 
     const client_mod = b.createModule(.{
         .root_source_file = b.path("src/client.zig"),
