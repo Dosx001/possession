@@ -3,7 +3,7 @@ import { createStore, produce } from "solid-js/store";
 import type { PermissionType } from "types";
 import { Permission, stringfyPermission } from "types";
 
-const Permissions = (props: {
+const PermChild = (props: {
   perms: PermissionType[];
   action: (permissions: PermissionType[]) => void;
 }) => {
@@ -79,4 +79,4 @@ const Permissions = (props: {
   );
 };
 
-export default Permissions;
+export default PermChild;

@@ -1,9 +1,9 @@
-import Permissions from "components/permissions";
+import PermChild from "components/PermChild";
 import { For, onMount } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { PermissionType, UrlInfo } from "types";
 
-const App = () => {
+const Permissions = () => {
   let input: HTMLInputElement;
   const [urls, setUrls] = createStore<UrlInfo[]>([]);
   function addData(item: UrlInfo) {
@@ -104,7 +104,7 @@ const App = () => {
                   ✕
                 </button>
               </div>
-              <Permissions
+              <PermChild
                 perms={item.permissions}
                 action={(perms) => {
                   setUrls(
@@ -123,4 +123,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default Permissions;
