@@ -27,7 +27,7 @@ pub fn init(io: std.Io, opts: Options) !void {
         0,
     );
     errno.check(fd) catch {
-        errno.log("Websocket socket failed: {}");
+        errno.log(.err, "Websocket socket failed: {}");
         return;
     };
     defer _ = posix.system.close(fd);
@@ -48,14 +48,14 @@ pub fn init(io: std.Io, opts: Options) !void {
         &addr,
         @sizeOf(posix.system.sockaddr),
     )) catch {
-        errno.log("Websocket bind failed: {}");
+        errno.log(.err, "Websocket bind failed: {}");
         return;
     };
     errno.check(posix.system.listen(
         fd,
         10,
     )) catch {
-        errno.log("Websocket listen failed: {}");
+        errno.log(.err, "Websocket listen failed: {}");
         return;
     };
     std.log.info("Websocket listening: {d}.{d}.{d}.{d}:{d}", .{
@@ -84,7 +84,7 @@ pub fn init(io: std.Io, opts: Options) !void {
     while (true) {
         const conn = posix.system.accept(fd, null, null);
         errno.check(conn) catch {
-            errno.log("Websocket accept failed: {}");
+            errno.log(.warn, "Websocket accept failed: {}");
             return;
         };
         var buf: [1024]u8 = undefined;
@@ -156,7 +156,7 @@ fn handshake(
     buf: []u8,
 ) !bool {
     _ = posix.read(fd, buf) catch |e| {
-        std.log.err("Websocket header read failed: {}", .{e});
+        std.log.warn("Websocket header read failed: {}", .{e});
         return e;
     };
     b_mtx.lock(io) catch return false;
@@ -173,7 +173,7 @@ fn handshake(
                     &[1]u8{0x2},
                     1,
                 ))) catch |e| {
-                    errno.log("Client rejection failed: {}");
+                    errno.log(.warn, "Client rejection failed: {}");
                     return e;
                 };
             } else {
@@ -182,7 +182,7 @@ fn handshake(
                     &[1]u8{0x1},
                     1,
                 ))) catch |e| {
-                    errno.log("Client handshake failed: {}");
+                    errno.log(.warn, "Client handshake failed: {}");
                     return e;
                 };
             }
@@ -192,7 +192,7 @@ fn handshake(
                 &[1]u8{0x0},
                 1,
             ))) catch |e| {
-                errno.log("Client rejection failed: {}");
+                errno.log(.warn, "Client rejection failed: {}");
                 return e;
             };
         }
@@ -204,7 +204,7 @@ fn handshake(
             &[1]u8{0x0},
             1,
         ))) catch |e| {
-            errno.log("Client rejection failed: {}");
+            errno.log(.warn, "Client rejection failed: {}");
             return e;
         };
         return error.AlreadyInUse;
@@ -225,7 +225,7 @@ fn handshake(
             "{s}258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
             .{key},
         ) catch |e| {
-            std.log.err("Magic string failed: {}", .{e});
+            std.log.warn("Magic string failed: {}", .{e});
             return e;
         },
         &sha,
@@ -244,7 +244,7 @@ fn handshake(
             "Sec-WebSocket-Accept: {s}\r\n\r\n",
         .{encoder.encode(&b64, &sha)},
     ) catch |e| {
-        std.log.err("Handshake format failed: {}", .{e});
+        std.log.warn("Handshake format failed: {}", .{e});
         return e;
     };
     errno.check(@intCast(posix.system.write(
@@ -252,7 +252,7 @@ fn handshake(
         slice.ptr,
         slice.len,
     ))) catch |e| {
-        errno.log("Handshake write failed: {}");
+        errno.log(.warn, "Handshake write failed: {}");
         return e;
     };
     return true;
@@ -300,7 +300,7 @@ fn decode(
         payload.ptr,
         payload.len,
     ))) catch {
-        errno.log("Client payload failed: {}");
+        errno.log(.warn, "Client payload failed: {}");
         return;
     };
 }
@@ -312,7 +312,7 @@ fn msg_header(fd: c_int, len: u64) !void {
             &[2]u8{ 0x81, @intCast(len) },
             2,
         ))) catch |e| {
-            errno.log("Message header failed: {}");
+            errno.log(.warn, "Message header failed: {}");
             return e;
         };
     } else if (len <= std.math.maxInt(u16)) {
@@ -326,7 +326,7 @@ fn msg_header(fd: c_int, len: u64) !void {
             },
             4,
         ))) catch |e| {
-            errno.log("Message(16-bit) header failed: {}");
+            errno.log(.warn, "Message(16-bit) header failed: {}");
             return e;
         };
     } else {
@@ -339,7 +339,7 @@ fn msg_header(fd: c_int, len: u64) !void {
             &header,
             10,
         ))) catch |e| {
-            errno.log("Message(64-bit) header failed: {}");
+            errno.log(.warn, "Message(64-bit) header failed: {}");
             return e;
         };
     }
@@ -376,7 +376,7 @@ fn message(
         msg.ptr,
         msg.len,
     ))) catch |e| {
-        errno.log("Message payload write failed: {}");
+        errno.log(.warn, "Message payload write failed: {}");
         return e;
     };
     std.log.info("Record {s}", .{msg});
@@ -389,7 +389,7 @@ fn quit(_: posix.SIG) callconv(.c) void {
             &[2]u8{ 0x88, 0x00 },
             2,
         ))) catch {
-            errno.log("Cleanup failed: {}");
+            errno.log(.err, "Cleanup failed: {}");
             return;
         };
     }
@@ -409,7 +409,7 @@ fn exit(signal: posix.SIG) callconv(.c) void {
             &[2]u8{ 0x88, 0x00 },
             2,
         ))) catch {
-            errno.log("Cleanup failed: {}");
+            errno.log(.err, "Cleanup failed: {}");
             return;
         };
     }

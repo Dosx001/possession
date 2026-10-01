@@ -13,7 +13,7 @@ pub fn main(init: std.process.Init) void {
         0,
     );
     errno.check(fd) catch {
-        errno.log("Websocket socket failed: {}");
+        errno.log(.err, "Websocket socket failed: {}");
         return;
     };
     defer _ = posix.system.close(fd);
@@ -31,12 +31,12 @@ pub fn main(init: std.process.Init) void {
         &addr,
         @sizeOf(posix.system.sockaddr),
     )) catch {
-        errno.log("Websocket connect failed: {}");
+        errno.log(.err, "Websocket connect failed: {}");
         return;
     };
     _ = message("client", .{}) catch unreachable;
     if (buf[0] == 0x0) {
-        std.log.info("rejected", .{});
+        std.log.err("rejected", .{});
         return;
     }
     const json = message_json(
@@ -96,7 +96,7 @@ fn message(
         slice.ptr,
         slice.len,
     ))) catch |err| {
-        errno.log("Message write failed: {}");
+        errno.log(.warn, "Message write failed: {}");
         return err;
     };
     const len = try posix.read(fd, &buf);
