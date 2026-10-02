@@ -1,7 +1,7 @@
 const std = @import("std");
 const build = @import("build");
 
-pub const Options = struct {
+pub const SockAddr = struct {
     port: u16 = 8080,
     ip: [4]u8 = .{ 127, 0, 0, 1 },
 };
@@ -29,8 +29,8 @@ const opt_map = std.StaticStringMap(Option).initComptime(.{
     .{ "-v", .Version },
 });
 
-pub fn parse(io: std.Io, args: std.process.Args) ?Options {
-    var opts = Options{};
+pub fn parse(io: std.Io, args: std.process.Args) ?SockAddr {
+    var addr = SockAddr{};
     var server = false;
     var stdout_buffer: [1024]u8 = undefined;
     var writer = std.Io.File.Writer.init(.stdout(), io, &stdout_buffer);
@@ -48,7 +48,7 @@ pub fn parse(io: std.Io, args: std.process.Args) ?Options {
                     };
                     std.process.exit(0);
                 },
-                .Remote => opts.ip = .{ 0, 0, 0, 0 },
+                .Remote => addr.ip = .{ 0, 0, 0, 0 },
                 .Server => server = true,
                 .Version => {
                     _ = stdout.print(
@@ -67,7 +67,7 @@ pub fn parse(io: std.Io, args: std.process.Args) ?Options {
             continue;
         }
         switch (opt) {
-            .Port => opts.port = std.fmt.parseInt(u16, arg, 10) catch {
+            .Port => addr.port = std.fmt.parseInt(u16, arg, 10) catch {
                 _ = stdout.write("\x1b[31mInvalid port number\x1b[0m\n" ++
                     \\Value must be unused port number between 0 and 65535
                     \\https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
@@ -96,7 +96,7 @@ pub fn parse(io: std.Io, args: std.process.Args) ?Options {
         };
         return null;
     }
-    return opts;
+    return addr;
 }
 
 fn help(stdout: *std.Io.Writer) void {

@@ -4,7 +4,7 @@ const std = @import("std");
 
 const posix = std.posix;
 
-const Options = @import("cli.zig").Options;
+const SockAddr = @import("cli.zig").SockAddr;
 
 var browser: posix.socket_t = -1;
 var b_mtx = std.Io.Mutex{ .state = .init(.unlocked) };
@@ -19,7 +19,7 @@ var c_cv = std.Io.Condition{
     .epoch = .init(0),
 };
 
-pub fn init(io: std.Io, opts: Options) !void {
+pub fn init(io: std.Io, sock_addr: SockAddr) !void {
     sig.init(quit, exit);
     const fd = posix.system.socket(
         posix.AF.INET,
@@ -34,13 +34,13 @@ pub fn init(io: std.Io, opts: Options) !void {
     const addr = posix.system.sockaddr{
         .family = posix.AF.INET,
         .data = .{
-            @truncate(opts.port >> 8), @truncate(opts.port),
-            opts.ip[0],                opts.ip[1],
-            opts.ip[2],                opts.ip[3],
-            0,                         0,
-            0,                         0,
-            0,                         0,
-            0,                         0,
+            @truncate(sock_addr.port >> 8), @truncate(sock_addr.port),
+            sock_addr.ip[0],                sock_addr.ip[1],
+            sock_addr.ip[2],                sock_addr.ip[3],
+            0,                              0,
+            0,                              0,
+            0,                              0,
+            0,                              0,
         },
     };
     errno.check(posix.system.bind(
@@ -59,11 +59,11 @@ pub fn init(io: std.Io, opts: Options) !void {
         return;
     };
     std.log.info("Websocket listening: {d}.{d}.{d}.{d}:{d}", .{
-        opts.ip[0],
-        opts.ip[1],
-        opts.ip[2],
-        opts.ip[3],
-        opts.port,
+        sock_addr.ip[0],
+        sock_addr.ip[1],
+        sock_addr.ip[2],
+        sock_addr.ip[3],
+        sock_addr.port,
     });
     const browser_t = std.Thread.spawn(
         .{},
