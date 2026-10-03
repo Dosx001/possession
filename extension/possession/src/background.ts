@@ -3,17 +3,28 @@ import { Permission } from "types";
 import { getTab } from "urls";
 
 let ws: WebSocket;
-let closed = false;
+let port = 8080;
+let reconnect: ReturnType<typeof setTimeout> | undefined;
+
+browser.storage.sync
+  .get("port")
+  .then((obj: { port?: number }) => {
+    if (obj.port) port = obj.port;
+    init();
+  })
+  .catch(console.error);
 
 function init() {
-  ws = new WebSocket("ws://127.0.0.1:8080");
+  if (reconnect) {
+    clearTimeout(reconnect);
+    reconnect = undefined;
+  }
+  ws = new WebSocket(`ws://127.0.0.1:${port.toString()}`);
   ws.onclose = () => {
-    closed = true;
-    setTimeout(init, 1000);
+    reconnect = setTimeout(init, 1000);
   };
   ws.onopen = () => {
-    if (closed) ws.send("ping");
-    closed = false;
+    ws.send("ping");
   };
   ws.onmessage = (ev: MessageEvent<string>) => {
     try {
@@ -150,8 +161,6 @@ function init() {
   };
 }
 
-init();
-
 function sendMsg(payload: unknown = "", ok: boolean = true) {
   ws.send(JSON.stringify({ ok, payload }));
 }
@@ -176,6 +185,28 @@ function handleUpdate(
 
 browser.runtime.onSuspend.addListener(() => {
   ws.close();
+});
+
+browser.runtime.onMessage.addListener((msg: number, _, sendResponse) => {
+  port = msg;
+  switch (ws.readyState) {
+    case WebSocket.CONNECTING:
+    case WebSocket.CLOSING:
+      sendResponse();
+      return true;
+    case WebSocket.OPEN:
+      ws.close();
+      break;
+    case WebSocket.CLOSED:
+      init();
+  }
+  const id = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      clearInterval(id);
+      sendResponse();
+    }
+  }, 250);
+  return true;
 });
 
 function keepAlive() {

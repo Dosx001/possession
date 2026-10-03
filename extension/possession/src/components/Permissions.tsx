@@ -49,9 +49,8 @@ const Permissions = () => {
       .catch(console.error);
   });
   return (
-    <div class="m-auto w-96 max-w-96">
-      <h1 class="text-center">Posession</h1>
-      <div class="mb-2 flex">
+    <>
+      <div class="my-2 flex">
         <input
           ref={(el) => (input = el)}
           class="w-full"
@@ -119,7 +118,7 @@ const Permissions = () => {
           )}
         </For>
       </div>
-    </div>
+    </>
   );
 };
 
