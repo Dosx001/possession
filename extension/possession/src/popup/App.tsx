@@ -13,7 +13,10 @@ const App = () => {
       .catch(console.error);
   });
   return (
-    <div class="m-auto w-96 max-w-96">
+    <div
+      style={{ "max-width": window.innerWidth < 64 ? "256px" : "1280px" }}
+      class="m-auto"
+    >
       <h1 class="text-center">Posession</h1>
       <label>Port: </label>
       <Show

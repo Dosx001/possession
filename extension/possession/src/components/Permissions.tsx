@@ -71,7 +71,10 @@ const Permissions = () => {
           ＋
         </button>
       </div>
-      <div class="border-gray flex h-96 max-h-96 flex-col overflow-auto border bg-black shadow-lg shadow-black">
+      <div
+        style={{ "max-height": window.innerWidth < 64 ? "384px" : "85vh" }}
+        class="border-gray flex flex-col overflow-auto border bg-black shadow-lg shadow-black"
+      >
         <For each={urls}>
           {(item, i) => (
             <>
