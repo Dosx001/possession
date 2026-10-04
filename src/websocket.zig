@@ -43,6 +43,26 @@ pub fn init(io: std.Io, sock_addr: SockAddr) !void {
             0,                              0,
         },
     };
+    if (@import("builtin").mode == .Debug) {
+        posix.setsockopt(
+            fd,
+            posix.SOL.SOCKET,
+            posix.SO.REUSEADDR,
+            &std.mem.toBytes(@as(c_int, 1)),
+        ) catch |err| {
+            std.log.err("Server setsockopt failed: {}", .{err});
+            return;
+        };
+        posix.setsockopt(
+            fd,
+            posix.SOL.SOCKET,
+            posix.SO.REUSEPORT,
+            &std.mem.toBytes(@as(c_int, 1)),
+        ) catch |err| {
+            std.log.err("Server setsockopt failed: {}", .{err});
+            return;
+        };
+    }
     errno.check(posix.system.bind(
         fd,
         &addr,
